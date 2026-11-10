@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1b1d2a">
+  <title>亂碼小鎮（暫名）</title>
+  <!-- 手機「加到主畫面」：圖示與全螢幕設定 -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="亂碼小鎮">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="app">
+
+    <!-- 小鎮（主畫面） -->
+    <section id="screen-start" class="screen active">
+      <h1 class="title town-title">亂碼小鎮<small>（暫名）</small></h1>
+      <div class="town-top">
+        <span id="town-gold" class="gold"></span>
+        <span id="town-inv" class="town-inv"></span>
+        <button class="btn btn-small btn-music" aria-label="音樂開關"></button>
+        <button class="btn btn-small btn-sound" aria-label="音效開關"></button>
+      </div>
+      <div id="hero-bar" class="hero-bar"></div>
+      <canvas id="street" class="street" title="點街景聽居民說話"></canvas>
+      <p class="street-tip">點街景，聽聽居民在說什麼</p>
+      <p id="town-hint" class="town-hint"></p>
+      <div id="shops" class="shops"></div>
+      <div class="menu menu-row">
+        <button id="btn-wardrobe" class="btn btn-sub">衣櫥</button>
+        <button id="btn-dex" class="btn btn-sub">怪物圖鑑</button>
+      </div>
+      <details class="howto">
+        <summary>怎麼玩</summary>
+        <ul>
+          <li>每間店被一隻亂碼怪佔據，打倒牠就能花金幣修店</li>
+          <li>修好的店會開始賣道具，下一隻怪也會出現</li>
+          <li>三間店都修好，魔王會出現在街尾廣場</li>
+          <li>戰鬥：填對＝攻擊，連續填對有連擊加成；填錯會被反擊，扣 1 顆心</li>
+          <li>怪物會定時攻擊（看倒數條），填對一格倒數會往回退</li>
+          <li>填滿一列、一行或一宮＝爆擊</li>
+          <li>打贏拿經驗，升級時從三個技能選一個（可以重複選來疊加）</li>
+          <li>電腦：方向鍵移動、數字鍵填、Q W E R 用道具、P 暫停</li>
+        </ul>
+        <p class="save-note">進度會自動存在這台裝置的瀏覽器裡，換手機或換瀏覽器不會帶過去。</p>
+        <button id="btn-intro" class="btn btn-small btn-intro">重看開場</button>
+        <button id="btn-reset" class="btn btn-small btn-intro btn-reset">從頭開始（清除進度）</button>
+      </details>
+    </section>
+
+    <!-- 戰鬥畫面 -->
+    <section id="screen-battle" class="screen">
+      <header class="hud">
+        <span id="hearts" class="hearts" aria-label="生命"></span>
+        <span id="combo" class="combo"></span>
+        <span class="hud-right">
+          <span id="gold" class="gold"></span>
+          <button class="btn btn-small btn-music" aria-label="音樂開關"></button>
+        <button class="btn btn-small btn-sound" aria-label="音效開關"></button>
+          <button id="btn-pause" class="btn btn-small" aria-label="暫停">暫停</button>
+        </span>
+      </header>
+
+      <div class="mon-info">
+        <span class="mon-label"><b id="mon-name" class="mon-name"></b><small id="mon-move" class="mon-move"></small></span>
+        <div class="bar hp-bar"><div id="hp-fill" class="fill"></div><span id="hp-text" class="bar-text"></span></div>
+      </div>
+      <div class="stage-wrap">
+        <canvas id="stage" class="stage"></canvas>
+        <div id="pops" class="pops"></div>
+      </div>
+
+      <div class="bar timer-bar"><div id="timer-fill" class="fill"></div><span id="timer-text" class="bar-text"></span></div>
+
+      <div id="board" class="board"></div>
+      <div id="pad" class="pad"></div>
+      <div id="items" class="items"></div>
+
+      <div id="pause-layer" class="layer hidden">
+        <div class="layer-box">
+          <p class="layer-title">暫停中</p>
+          <button id="btn-resume" class="btn btn-main">繼續</button>
+          <button id="btn-quit" class="btn btn-sub">撤退（回小鎮）</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 結果畫面 -->
+    <section id="screen-result" class="screen">
+      <h2 id="result-title" class="title"></h2>
+      <p id="result-sub" class="lead"></p>
+      <p id="result-ending" class="ending hidden"></p>
+      <dl id="result-stats" class="stats"></dl>
+      <button id="btn-result-dex" class="dex-new hidden">新怪物收進圖鑑了！</button>
+      <div class="menu">
+        <button id="btn-again" class="btn btn-main">再打一場</button>
+        <button id="btn-home" class="btn btn-sub">回小鎮</button>
+      </div>
+    </section>
+
+    <!-- 衣櫥（只是好看，不加能力） -->
+    <section id="screen-wardrobe" class="screen">
+      <h2 class="title">衣櫥</h2>
+      <div class="wd-top">
+        <canvas id="wd-pic" class="wd-pic"></canvas>
+        <div class="wd-side">
+          <p id="wd-name" class="wd-name"></p>
+          <p id="wd-gold" class="gold"></p>
+          <p id="wd-try" class="wd-try"></p>
+          <button id="wd-buy" class="btn sbtn repair hidden"></button>
+          <button id="wd-rename" class="btn btn-small">改名字／換角色</button>
+        </div>
+      </div>
+      <p class="wd-note">點一下就能試穿；衣服只是好看，不會變強。</p>
+      <div id="wd-slots"></div>
+      <div class="menu"><button id="btn-wd-back" class="btn btn-sub">回小鎮</button></div>
+    </section>
+
+    <!-- 怪物圖鑑 -->
+    <section id="screen-dex" class="screen">
+      <h2 class="title">怪物圖鑑</h2>
+      <p id="dex-count" class="lead"></p>
+      <div id="dex-list" class="dex-list"></div>
+      <div class="menu"><button id="btn-dex-back" class="btn btn-sub">回小鎮</button></div>
+    </section>
+
+    <!-- 開場故事 -->
+    <div id="intro" class="intro hidden">
+      <div class="intro-box">
+        <button id="intro-skip" class="btn btn-small intro-skip">跳過</button>
+        <canvas id="intro-canvas" class="intro-canvas"></canvas>
+        <p id="intro-text" class="intro-text"></p>
+        <div id="intro-dots" class="intro-dots"></div>
+        <button id="intro-next" class="btn btn-main intro-next">下一頁 ▶</button>
+      </div>
+    </div>
+
+    <!-- 取名與選角 -->
+    <div id="create" class="levelup hidden">
+      <div class="lu-box create-box">
+        <p class="lu-title">你是誰？</p>
+        <p class="lu-sub">舊電腦的螢幕上跳出一行字：請輸入修復師資料</p>
+        <canvas id="create-pic" class="create-pic"></canvas>
+        <label class="create-label" for="create-name">名字（最多 8 個字）</label>
+        <input id="create-name" class="create-name" maxlength="8" autocomplete="off" placeholder="小修">
+        <p id="create-err" class="create-err hidden"></p>
+        <p class="create-label">角色</p>
+        <div class="create-gender">
+          <button class="btn sbtn" data-gender="m">男生</button>
+          <button class="btn sbtn" data-gender="f">女生</button>
+        </div>
+        <button id="create-ok" class="btn btn-main">就是我了！</button>
+      </div>
+    </div>
+
+    <!-- 升級：三選一技能 -->
+    <div id="levelup" class="levelup hidden">
+      <div class="lu-box">
+        <p id="lu-title" class="lu-title"></p>
+        <p id="lu-sub" class="lu-sub"></p>
+        <div id="lu-cards" class="lu-cards"></div>
+      </div>
+    </div>
+
+    <div id="toast" class="toast hidden"></div>
+  </main>
+
+  <script src="js/sudoku.js"></script>
+  <script src="js/battle.js"></script>
+  <script src="js/monsters.js"></script>
+  <script src="js/sprites.js"></script>
+  <script src="js/icons.js"></script>
+  <script src="js/town.js"></script>
+  <script src="js/daily.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/save.js"></script>
+  <script src="js/avatar.js"></script>
+  <script src="js/hero.js"></script>
+  <script src="js/intro.js"></script>
+  <script src="js/street.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
