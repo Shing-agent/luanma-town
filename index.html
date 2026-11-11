@@ -28,8 +28,8 @@
         <button class="btn btn-small btn-sound" aria-label="音效開關"></button>
       </div>
       <div id="hero-bar" class="hero-bar"></div>
-      <canvas id="street" class="street" title="點街景聽居民說話"></canvas>
-      <p class="street-tip">點街景，聽聽居民在說什麼</p>
+      <canvas id="street" class="street" title="點店看店面板、點居民聽他說話"></canvas>
+      <p class="street-tip">點街上的店切換下方的店面板；點居民聽他說話</p>
       <p id="town-hint" class="town-hint"></p>
       <div id="shops" class="shops"></div>
       <div class="menu menu-row">
@@ -46,7 +46,7 @@
           <li>怪物會定時攻擊（看倒數條），填對一格倒數會往回退</li>
           <li>填滿一列、一行或一宮＝爆擊</li>
           <li>打贏拿經驗，升級時從三個技能選一個（可以重複選來疊加）</li>
-          <li>電腦：方向鍵移動、數字鍵填、Q W E R 用道具、P 暫停</li>
+          <li>電腦：方向鍵或 W A S D 移動、數字鍵填、Z X C V 用道具、P 暫停</li>
         </ul>
         <p class="save-note">進度會自動存在這台裝置的瀏覽器裡，換手機或換瀏覽器不會帶過去。</p>
         <button id="btn-intro" class="btn btn-small btn-intro">重看開場</button>
@@ -67,20 +67,24 @@
         </span>
       </header>
 
-      <div class="mon-info">
-        <span class="mon-label"><b id="mon-name" class="mon-name"></b><small id="mon-move" class="mon-move"></small></span>
+      <div class="statusbar">
         <div class="bar hp-bar"><div id="hp-fill" class="fill"></div><span id="hp-text" class="bar-text"></span></div>
+        <div class="bar timer-bar"><div id="timer-fill" class="fill"></div><span id="timer-text" class="bar-text"></span></div>
       </div>
       <div class="stage-wrap">
         <canvas id="stage" class="stage"></canvas>
         <div id="pops" class="pops"></div>
+        <div id="mz-chips" class="mz-chips hidden"></div>
+        <div class="mon-tag"><b id="mon-name" class="mon-name"></b><small id="mon-move" class="mon-move"></small></div>
       </div>
 
-      <div class="bar timer-bar"><div id="timer-fill" class="fill"></div><span id="timer-text" class="bar-text"></span></div>
-
-      <div id="board" class="board"></div>
+      <div id="board-wrap" class="board-wrap">
+        <div id="board" class="board"></div>
+        <div id="board-pops" class="pops"></div>
+      </div>
       <div id="pad" class="pad"></div>
       <div id="items" class="items"></div>
+      <div id="ult-wrap" class="ult-wrap hidden"></div>
 
       <div id="pause-layer" class="layer hidden">
         <div class="layer-box">
@@ -90,6 +94,9 @@
         </div>
       </div>
     </section>
+
+    <!-- 亂碼迷宮（裂縫入口、選路、掉落、商店…）：內容由 js/mazeui.js 畫 -->
+    <section id="screen-maze" class="screen"><div id="mz-body" class="mz-body"></div></section>
 
     <!-- 結果畫面 -->
     <section id="screen-result" class="screen">
@@ -176,12 +183,14 @@
   <script src="js/monsters.js"></script>
   <script src="js/sprites.js"></script>
   <script src="js/icons.js"></script>
+  <script src="js/maze.js"></script>
   <script src="js/town.js"></script>
   <script src="js/daily.js"></script>
   <script src="js/sound.js"></script>
   <script src="js/save.js"></script>
   <script src="js/avatar.js"></script>
   <script src="js/hero.js"></script>
+  <script src="js/mazeui.js"></script>
   <script src="js/intro.js"></script>
   <script src="js/street.js"></script>
   <script src="js/main.js"></script>

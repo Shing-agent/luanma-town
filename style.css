@@ -106,6 +106,16 @@ body {
   100% { opacity: 0; transform: translate(-50%, -34px) scale(1); }
 }
 
+/* 盤面上的回饋：傷害數字從格子跳出來、被打時盤面晃一下閃紅 */
+.board-wrap { position: relative; }
+.board-wrap .pop { font-size: 16px; }
+.board-wrap .pop.crit { font-size: 20px; }
+.board-wrap.hit { animation: board-hit 0.35s; }
+.board-wrap.hit::after { content: ""; position: absolute; inset: 0; border-radius: 8px; background: rgba(255, 70, 90, 0.3); pointer-events: none; z-index: 2; animation: hit-fade 0.45s forwards; }
+@keyframes board-hit { 0%, 100% { transform: none; } 20% { transform: translateX(-6px); } 45% { transform: translateX(6px); } 70% { transform: translateX(-3px); } }
+@keyframes hit-fade { from { opacity: 1; } to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .board-wrap.hit { animation: none; } }
+
 /* 數獨盤面（終端機風） */
 .board {
   display: grid;
@@ -349,3 +359,109 @@ body {
 .street { cursor: pointer; }
 .street-tip { margin: 2px 0 0; text-align: right; font-size: 11px; color: var(--muted); }
 .toast { max-width: 90vw; text-align: center; line-height: 1.5; }
+
+/* ===== 亂碼迷宮 ===== */
+.pop.coin { color: var(--gold); }
+/* 特殊格：角落的小圖示 */
+.cell.sp-chest::before, .cell.sp-bomb::before, .cell.sp-gold::before { content: ""; position: absolute; left: 3px; top: 3px; width: 17px; height: 14px; background-repeat: no-repeat; background-position: left top; background-size: contain; image-rendering: pixelated; pointer-events: none; }
+.cell.sp-chest::before { background-image: var(--ic-chest); }
+.cell.sp-bomb::before { background-image: var(--ic-bomb); width: 14px; height: 14px; }
+.cell.sp-gold::before { background-image: var(--ic-nugget); }
+.cell.sp-gold { box-shadow: inset 0 0 0 2px #b8862b88; }
+.cell.sp-bomb { box-shadow: inset 0 0 0 2px #c9473f88; }
+.cell.selected.sp-gold, .cell.selected.sp-bomb { box-shadow: inset 0 0 0 3px var(--gold); }
+/* 戰鬥畫面：外掛列蓋在舞台上方、大招按鈕取代道具列 */
+.stage-wrap .mz-chips { position: absolute; left: 0; right: 0; top: 0; display: flex; flex-wrap: wrap; gap: 2px; padding: 3px; max-height: 40%; overflow: hidden; background: linear-gradient(#0d0f1acc, #0d0f1a00); pointer-events: none; z-index: 2; }
+.mz-chips .mzp, .mz-chips .mzs { font-size: 9px; line-height: 1.2; padding: 1px 4px; border-radius: 6px; background: #1b1d2acc; border: 1px solid var(--fc); color: #fff; white-space: nowrap; }
+.mz-chips .mzs { background: var(--fc); color: #1b1d2a; font-weight: 800; border-color: transparent; opacity: 0.75; }
+.mz-chips .mzs.on { opacity: 1; }
+.mz-chips .mzp em { font-style: normal; margin-left: 2px; color: var(--fc); font-weight: 800; }
+.ult-wrap { margin-top: 8px; }
+.btn.ult { position: relative; width: 100%; overflow: hidden; background: #3a3e55; padding: 10px 0; font-weight: 800; font-size: 16px; }
+.btn.ult .ult-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: #7a5ad9; transition: width 0.2s; }
+.btn.ult .ult-label { position: relative; }
+.btn.ult .key { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: 10px; opacity: 0.8; }
+.btn.ult .pxi { height: 16px; vertical-align: -3px; }
+.btn.ult.ready { background: #d4a020; color: #1b1d2a; animation: ult-pulse 0.9s infinite; }
+.btn.ult.ready .ult-fill { background: #ffd84d; }
+@keyframes ult-pulse { 50% { box-shadow: 0 0 0 3px #ffd84d, 0 3px 0 rgba(0,0,0,0.35); } }
+
+/* 迷宮各畫面 */
+.mz-title { font-size: 26px; margin: 10px 0 6px; }
+.mz-title .pxi { height: 24px; vertical-align: -3px; }
+.mz-lead { margin-bottom: 12px; font-size: 14px; }
+.mz-box { background: var(--panel); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; }
+.mz-box h3 { margin: 0 0 8px; font-size: 15px; }
+.mz-shards { font-size: 18px; font-weight: 800; color: #7fe8dc; }
+.mz-shards .pxi { height: 18px; vertical-align: -3px; }
+.mz-meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px solid #353a52; }
+.mz-meta:first-of-type { border-top: 0; }
+.mz-meta small { color: var(--muted); }
+.mz-meta.sold { opacity: 0.5; }
+.mz-meta .rare-t { color: var(--gold); font-weight: 800; }
+.mz-meta .btn[disabled], .sbtn[disabled] { background: #4d5063; color: #aab; cursor: default; }
+.mz-head { background: var(--panel); border-radius: 12px; padding: 8px 10px; margin-bottom: 8px; }
+.mz-prog { display: flex; gap: 2px; margin-bottom: 6px; }
+.mz-prog .mzc { flex: 1; height: 8px; border-radius: 2px; background: #3a3e55; }
+.mz-prog .mzc.gap { margin-left: 5px; }
+.mz-prog .mzc.done { background: #57e389; }
+.mz-prog .mzc.boss { background: #6a3040; }
+.mz-prog .mzc.boss.done { background: #ffd84d; }
+.mz-prog .mzc.cur { background: #fff; box-shadow: 0 0 0 1px #ffd84d; }
+.mz-stat { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+.mz-stat b { color: var(--gold); }
+.mz-stat .mz-hearts { display: flex; gap: 2px; margin-left: auto; }
+.mz-stat .mz-hearts .pxi { height: 16px; }
+.mz-plugs { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.mzp { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; padding: 2px 6px; border-radius: 8px; background: #1b1d2a; border: 1px solid var(--fc); }
+.mzp i { font-style: normal; color: var(--fc); font-weight: 800; font-size: 10px; }
+.mzp em { font-style: normal; color: var(--gold); font-weight: 800; }
+.mzp.rare { box-shadow: 0 0 0 1px var(--gold); }
+.mz-none { color: var(--muted); font-size: 12px; }
+.mz-sets { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 6px; }
+.mzs { display: flex; flex-direction: column; font-size: 11px; padding: 3px 6px; border-radius: 8px; background: #23263a; border: 1px solid #353a52; color: var(--muted); line-height: 1.35; }
+.mzs b { color: var(--fc); font-size: 12px; }
+.mzs small { font-size: 10px; }
+.mzs.on { border-color: var(--fc); color: #fff; background: #2c3050; }
+.mz-sub { font-size: 20px; margin: 8px 0 2px; }
+.mz-card { position: relative; display: flex; align-items: center; gap: 12px; text-align: left; background: #34406a; border: 2px solid #5a6aa8; padding: 12px 14px; }
+.mz-card .mz-ico .pxi { height: 28px; }
+.mz-card.room.elite { background: #5a2a3a; border-color: #b04a66; }
+.mz-card.room.boss { background: #6a2a4a; border-color: #d94f6a; }
+.mz-card.room.rest { background: #2e5a45; border-color: #4aa57a; }
+.mz-card.room.shop { background: #5a4a1f; border-color: #b8862b; }
+.mz-card.room.event { background: #4a3a7a; border-color: #8a6bd9; }
+.mz-card.pack, .mz-card.drop { border-color: var(--fc); }
+.mz-card.drop.rare { box-shadow: 0 0 0 2px var(--gold); }
+.mz-flow { flex: none; font-size: 11px; font-weight: 800; color: #1b1d2a; background: var(--fc); padding: 2px 6px; border-radius: 8px; }
+.mz-row { display: flex; gap: 8px; justify-content: center; margin: 10px 0; }
+.mz-leave { display: block; margin: 12px auto 0; }
+.mz-forges { display: flex; flex-direction: column; gap: 6px; }
+.mz-forge { background: #3a3f5a; border: 2px solid var(--fc); padding: 8px; font-size: 14px; }
+.mz-evtext { background: var(--panel); border-radius: 12px; padding: 12px 14px; line-height: 1.7; font-size: 15px; margin: 8px 0 12px; }
+.mz-evbtn { font-size: 15px; }
+.mz-abandon { background: #6a3040; }
+.mz-abandon.armed { background: #b03a52; }
+.rift-card .pxi { height: 14px; vertical-align: -2px; }
+.rift-card.st-open { border: 2px solid #8a6bd9; }
+.sbtn.fight.rift { background: #6b52b5; }
+.rift-card.st-locked .pxi { filter: brightness(0) invert(0.35); }
+.mz-body .lu-cards { gap: 8px; }
+
+/* ===== 戰鬥版面（2026-11-11）：單行雙向狀態列＋矮舞台＋盤面邊框提示 ===== */
+.statusbar { display: flex; gap: 3px; margin-bottom: 4px; }
+.statusbar .bar { flex: 1; height: 16px; border-radius: 0; margin: 0; }
+.statusbar .bar-text { line-height: 16px; }
+.statusbar .hp-bar { border-radius: 8px 0 0 8px; }
+.statusbar .timer-bar { border-radius: 0 8px 8px 0; }
+.statusbar .fill { position: absolute; top: 0; bottom: 0; height: auto; }
+.statusbar .hp-bar .fill { right: 0; left: auto; }
+.statusbar .timer-bar .fill { left: 0; right: auto; }
+.stage { aspect-ratio: 128 / 40; object-fit: cover; object-position: center bottom; }
+.mon-tag { position: absolute; left: 6px; top: 4px; display: flex; flex-direction: column; line-height: 1.15; max-width: 60%; padding: 2px 6px; background: #0d0f1a99; border-radius: 6px; pointer-events: none; z-index: 2; }
+.mon-tag .mon-name { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mon-tag .mon-move { font-size: 10px; color: var(--gold); }
+.board { transition: box-shadow 0.15s; }
+.board.danger { box-shadow: 0 0 0 3px #e0455f99, 0 0 10px 2px #e0455f66; }
+.board.fx { box-shadow: 0 0 0 3px var(--fx), 0 0 14px 4px var(--fx) !important; }
+.mz-chips:not(.hidden) ~ .mon-tag { display: none; }

@@ -85,13 +85,60 @@
     '.DMMMMMMMMMMD.',
     '..DDDDDDDDDD..',
   ];
+  // 迷宮新怪物（可愛繪本風）：罐頭郵件、彈窗小精靈、沒電熊
+  const CAN_MAP = [
+    '....WWWWWW....',
+    '....WRWWRW....',
+    '....WWRRWW....',
+    '..DDDDDDDDDD..',
+    '.DMMMMMMMMMMD.',
+    '.DMMMMMMMMMMD.',
+    '.DMMWWMMWWMMD.',
+    '.DMMWKMMWKMMD.',
+    '.DMMMMMMMMMMD.',
+    '.DMMKMMMMKMMD.',
+    '.DMMMKKKKMMMD.',
+    '.DMMMMMMMMMMD.',
+    '.DDDDDDDDDDDD.',
+    '..DDD....DDD..',
+  ];
+  const POPUP_MAP = [
+    'DDDDDDDDDDDDDD',
+    'DTTTTTTTTTRWRD',
+    'DTTTTTTTTTWRWD',
+    'DTTTTTTTTTRWRD',
+    'DDDDDDDDDDDDDD',
+    'DMMMMMMMMMMMMD',
+    'DMMWWMMMMWWMMD',
+    'DMMWKMMMMWKMMD',
+    'DMMMMMMMMMMMMD',
+    'DMMMMKKKKMMMMD',
+    'DMMMMMMMMMMMMD',
+    'DDDDDDDDDDDDDD',
+    '..DD......DD..',
+  ];
+  const BEAR_MAP = [
+    '....BBBBBBB...',
+    '....BRWWWWWBB.',
+    '....BBBBBBB...',
+    '.MMM......MMM.',
+    '.MMMMMMMMMMMM.',
+    'MMMMMMMMMMMMMM',
+    'MMMWWMMMMWWMMM',
+    'MMMWKMMMMWKMMM',
+    'MMMMMTTTTMMMMM',
+    'MMMMMTKKTMMMMM',
+    'DMMMMMMMMMMMMD',
+    '.DMMMMMMMMMMD.',
+    '..DDD....DDD..',
+  ];
   const BOSS_MAP = [
     '...C..C..C..C...',
     '...CCCCCCCCCC...',
     '...CCYCCCCYCC...',
   ].concat(BLOB_MAP);
   // 每種造型的動畫影格
-  const MAPS = { blob: [BLOB_MAP], bat: [BAT_UP, BAT_DOWN], cube: [CUBE_MAP], boss: [BOSS_MAP] };
+  const MAPS = { blob: [BLOB_MAP], bat: [BAT_UP, BAT_DOWN], cube: [CUBE_MAP], can: [CAN_MAP], popup: [POPUP_MAP], bear: [BEAR_MAP], boss: [BOSS_MAP] };
 
   function mix(a, b, t) {
     const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);

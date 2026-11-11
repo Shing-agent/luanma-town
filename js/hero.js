@@ -10,19 +10,19 @@
   const xpFor = holes => holes;
 
   const SKILLS = [
-    { id: 'heart',  name: '強韌',     icon: 'heart',  max: 2, text: '心的上限 +1',              detail: n => `心的上限 +${n}` },
+    { id: 'heart',  name: '備用電池',     icon: 'heart',  max: 2, text: '心的上限 +1',              detail: n => `心的上限 +${n}` },
     { id: 'combo',  name: '連擊大師', icon: 'sword',  max: 3, text: '連擊每格加成 +0.1 倍',      detail: n => `連擊最高 ${(2 + 0.4 * n).toFixed(1)} 倍` },
-    { id: 'reveal', name: '開場偷看', icon: 'scan',   max: 3, text: '每場開場自動多填好 1 格',   detail: n => `開場多填 ${n} 格` },
-    { id: 'calm',   name: '冷靜',     icon: 'freeze', max: 3, text: '怪物攻擊倒數 +4 秒',        detail: n => `攻擊倒數 +${4 * n} 秒` },
-    { id: 'crit',   name: '爆擊強化', icon: 'bomb',   max: 3, text: '爆擊傷害 +30%',             detail: n => `爆擊傷害 +${30 * n}%` },
-    { id: 'shield', name: '護盾',     icon: 'shield', max: 1, text: '每場擋下第一次扣心',        detail: () => '每場擋 1 次扣心' },
-    { id: 'lucky',  name: '招財',     icon: 'coin',   max: 3, text: '打贏的金幣 +20%',           detail: n => `金幣 +${20 * n}%` },
+    { id: 'reveal', name: '作弊碼', icon: 'scan',   max: 3, text: '每場開場自動多填好 1 格',   detail: n => `開場多填 ${n} 格` },
+    { id: 'calm',   name: '轉圈圈',     icon: 'freeze', max: 3, text: '怪物攻擊倒數 +4 秒',        detail: n => `攻擊倒數 +${4 * n} 秒` },
+    { id: 'crit',   name: '超頻爆擊', icon: 'bomb',   max: 3, text: '爆擊傷害 +30%',             detail: n => `爆擊傷害 +${30 * n}%` },
+    { id: 'shield', name: '防火牆',     icon: 'shield', max: 1, text: '每場擋下第一次扣心',        detail: () => '每場擋 1 次扣心' },
+    { id: 'lucky',  name: '挖礦',     icon: 'coin',   max: 3, text: '打贏的金幣 +20%',           detail: n => `金幣 +${20 * n}%` },
     // 職業專屬技能（進化後才抽得到）
     { id: 'reflect', cls: 'knight', name: '反彈',     icon: 'shield', max: 3, text: '填錯時怪物也受 25 傷害',   detail: n => `填錯反彈 ${25 * n} 傷害` },
-    { id: 'wall',    cls: 'knight', name: '鐵壁',     icon: 'shield', max: 2, text: '每場多 1 次護盾',          detail: n => `護盾 +${n} 次` },
+    { id: 'wall',    cls: 'knight', name: '雙重驗證',     icon: 'shield', max: 2, text: '每場多 1 道防火牆',          detail: n => `防火牆 +${n} 道` },
     { id: 'chain',   cls: 'mage',   name: '連鎖爆擊', icon: 'bomb',   max: 2, text: '爆擊時順便揭開 1 格',      detail: n => `爆擊連鎖 ${n} 格` },
     { id: 'focus',   cls: 'mage',   name: '專注',     icon: 'freeze', max: 3, text: '填對時倒數多退 5%',        detail: n => `倒數多退 ${5 * n}%` },
-    { id: 'spare',   cls: 'rogue',  name: '妙手',     icon: 'scan',   max: 2, text: '用道具有 20% 機會不消耗',  detail: n => `道具 ${20 * n}% 不消耗` },
+    { id: 'spare',   cls: 'rogue',  name: '快取',     icon: 'scan',   max: 2, text: '用道具有 20% 機會不消耗',  detail: n => `道具 ${20 * n}% 不消耗` },
     { id: 'loot',    cls: 'rogue',  name: '順手牽羊', icon: 'coin',   max: 3, text: '打贏有 25% 機會撿到道具', detail: n => `撿道具 ${25 * n}%` },
   ];
   const byId = Object.fromEntries(SKILLS.map(s => [s.id, s]));
@@ -30,7 +30,7 @@
   // 進化：Lv 4 起可以三選一（2026-11-10）。外觀換成職業裝，之後升級多抽到職業專屬技能。
   const EVOLVE_LV = 4;
   const CLASSES = {
-    knight: { name: '除錯騎士', icon: 'shield', role: '耐打', text: '心的上限 +1、每場多 1 次護盾' },
+    knight: { name: '除錯騎士', icon: 'shield', role: '耐打', text: '心的上限 +1、每場多 1 道防火牆' },
     mage:   { name: '演算法師', icon: 'bomb',   role: '攻擊', text: '爆擊傷害 +50%' },
     rogue:  { name: '亂碼盜賊', icon: 'coin',   role: '運氣', text: '開場多填 1 格、金幣 +30%' },
   };
@@ -92,7 +92,7 @@
         attackBonus: 4 * lv(g, 'calm'),
         reflect: 25 * lv(g, 'reflect'),
         chainReveal: lv(g, 'chain'),
-        rollback: 0.15 + 0.05 * lv(g, 'focus'),
+        rollbackBonus: 0.05 * lv(g, 'focus'), // 在 Battle 加到基本退回比例上
         itemSave: 0.2 * lv(g, 'spare'),
       },
     };

@@ -33,6 +33,7 @@
       cls: null,                     // 進化職業 knight／mage／rogue
       daily: { last: '', streak: 0, best: 0 },   // 每日挑戰：最後過關日、連續天數、最快秒數（daily.js）
       follower: null,                // 帶著走的跟班（怪物 id）
+      maze: { shards: 0, meta: { heart: 0, cash: 0, reroll: 0 }, run: null, best: { floors: 0, clears: 0 }, unlocked: false }, // 亂碼迷宮（maze.js）：碎片、永久加成、進行中這局、最佳紀錄
     };
   }
 

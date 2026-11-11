@@ -34,9 +34,9 @@
       id: 'm4', name: '亂碼之王（暫名）', size: 9, map: 'boss', scale: 2, boss: true,
       pal: { M: '#d94f6a', D: '#9a2a42', W: '#ffffff', K: '#2a0c14', T: '#ffe0e8', C: '#ffd84d', Y: '#57e3d4' },
       phases: [
-        { moves: { cover: { every: 14, count: 2, max: 4 } }, name: '黏液' },
-        { moves: { fake: { every: 16, max: 2 } }, name: '雜訊' },
-        { moves: {}, attackTime: 28, name: '急躁' },
+        { moves: { cover: { every: 18, count: 2, max: 3 } }, name: '黏液' },
+        { moves: { fake: { every: 20, max: 2 } }, name: '雜訊' },
+        { moves: {}, attackTime: 45, name: '急躁' },
       ],
       moveName: '三段變身',
       moveText: '血條分三段，每打掉一段就換一招：黏液 → 雜訊 → 急躁。',

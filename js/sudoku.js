@@ -6,7 +6,7 @@
   const SPEC = {
     4: { br: 2, bc: 2, givens: 7 },
     6: { br: 2, bc: 3, givens: 15 },
-    9: { br: 3, bc: 3, givens: 34 },
+    9: { br: 3, bc: 3, givens: 38 },
   };
 
   function shuffle(a, rng) {

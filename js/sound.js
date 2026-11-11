@@ -76,6 +76,11 @@
     levelup() { notes([523, 659, 784, 1047, 1319], 'square', 0.07, 0.15); },
     evolve() { notes([392, 523, 659, 784, 1047, 1319, 1568], 'square', 0.08, 0.15); },
     tap() { tone('square', 700, 700, 0.03, 0.06); },
+    // 亂碼迷宮
+    ult() { notes([330, 440, 587, 880, 1175], 'sawtooth', 0.05, 0.16); noise(0.2, 0.15, 0.1, 2500); },
+    foe() { notes([784, 988, 1175], 'square', 0.06, 0.14); },
+    plugin() { notes([659, 880, 1175], 'triangle', 0.07, 0.18); },
+    setbonus() { notes([523, 659, 784, 1047, 1319, 1568], 'square', 0.06, 0.15); },
   };
 
   function play(name, arg) { if (SFX[name]) { try { SFX[name](arg); } catch (e) { /* 聲音出錯不影響遊戲 */ } } }

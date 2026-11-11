@@ -4,10 +4,10 @@
   const $ = s => document.querySelector(s);
 
   const ITEMS = [
-    { kind: 'scan', key: 'q', name: '掃描器', icon: 'scan' },
-    { kind: 'bomb', key: 'w', name: '炸彈', icon: 'bomb' },
-    { kind: 'freeze', key: 'e', name: '凍結', icon: 'freeze' },
-    { kind: 'heal', key: 'r', name: '補血', icon: 'heart' },
+    { kind: 'scan', key: 'z', name: '掃描器', icon: 'scan' },
+    { kind: 'bomb', key: 'x', name: '炸彈', icon: 'bomb' },
+    { kind: 'freeze', key: 'c', name: '當機', icon: 'freeze' },
+    { kind: 'heal', key: 'v', name: '小補丁', icon: 'heart' },
   ];
 
   // 玩家資料（金幣、道具、圖鑑、修店進度、等級…）；存在瀏覽器裡。
@@ -19,6 +19,8 @@
   const ITEM_INFO = Object.fromEntries(ITEMS.map(it => [it.kind, it]));
 
   let battle = null, monsterIdx = 0, sel = 0, paused = false, ending = false, noteMode = false;
+  let mazeCtx = null; // 正在打亂碼迷宮的一場戰鬥：{ run }；主線戰鬥是 null
+  Maze.normalize(game);
 
   // 筆記模式切換
   function renderNoteMode() {
@@ -58,6 +60,28 @@
     $('#pops').appendChild(el);
   }
 
+  // 盤面上的跳字：從第 i 格冒出來（沒給格子就在盤面中間），眼睛盯著數字也看得到戰況
+  function boardPop(text, cls, i) {
+    const wrap = $('#board-wrap'), c = cells[i];
+    const el = document.createElement('div');
+    el.className = 'pop ' + cls;
+    el.innerHTML = text;
+    el.style.top = (c ? c.offsetTop - 4 : wrap.offsetHeight / 2 - 12) + 'px';
+    el.addEventListener('animationend', () => el.remove());
+    $('#board-pops').appendChild(el);
+    // 靠邊的格子：字不要超出盤面
+    const x = c ? c.offsetLeft + c.offsetWidth / 2 : wrap.offsetWidth / 2, half = el.offsetWidth / 2 + 2;
+    el.style.left = Math.min(Math.max(x, half), wrap.offsetWidth - half) + 'px';
+  }
+
+  // 被打：整個盤面晃一下、閃紅
+  function boardHit() {
+    const wrap = $('#board-wrap');
+    wrap.classList.remove('hit'); void wrap.offsetWidth; wrap.classList.add('hit');
+    clearTimeout(boardHit.t);
+    boardHit.t = setTimeout(() => wrap.classList.remove('hit'), 500);
+  }
+
   // ---------- 開戰 ----------
   function startBattle(idx) {
     if (idx === 'daily') { startDaily(); return; }
@@ -76,8 +100,18 @@
     beginBattle(Daily.monster(dailyDate), Daily.puzzle(dailyDate));
   }
 
-  function beginBattle(monster, puzzle) {
-    battle = new Battle(Object.assign({ puzzle, monster, inventory: game.inventory }, Hero.battleOpts(game)));
+  // 亂碼迷宮的一場戰鬥：主線的技能、職業、道具、跟班都不帶進來，只靠外掛（規則在 maze.js）
+  function startMazeBattle(run) {
+    const node = run.node;
+    monsterIdx = 'maze';
+    beginBattle(node.foes[0].look, Sudoku.generate(node.n), run);
+  }
+
+  function beginBattle(monster, puzzle, mazeRun) {
+    battle = new Battle(mazeRun
+      ? Object.assign({ puzzle }, Maze.battleOpts(mazeRun, mazeRun.node))
+      : Object.assign({ puzzle, monster, inventory: game.inventory }, Hero.battleOpts(game)));
+    mazeCtx = mazeRun ? { run: mazeRun } : null;
     sel = battle.grid.indexOf(0);
     paused = false; ending = false;
     $('#pause-layer').classList.add('hidden');
@@ -85,11 +119,79 @@
     battle.avoid = sel;
     stage.setMonster(monster);
     stage.look = heroLook();
-    stage.follower = game.follower ? MONSTERS.find(x => x.id === game.follower) : null;
+    stage.follower = !mazeCtx && game.follower ? MONSTERS.find(x => x.id === game.follower) : null;
+    $('#items').classList.toggle('hidden', !!mazeCtx);
+    $('#ult-wrap').classList.toggle('hidden', !mazeCtx);
+    $('#mz-chips').classList.toggle('hidden', !mazeCtx);
+    $('#btn-quit').textContent = mazeCtx ? '撤退（回裂縫，這一關要重打）' : '撤退（回小鎮）';
     buildBoard(); buildPad(); buildItems(); buildHpSegments();
+    if (mazeCtx) { buildUlt(); renderChips(); }
     show('screen-battle');
     render();
-    setTimeout(() => popup(`招式：${monster.moveName}`, 'info', 'monster'), 400);
+    setTimeout(() => popup(`招式：${battle ? battle.monster.moveName : monster.moveName}`, 'info', 'monster'), 400);
+  }
+
+  // ---------- 亂碼迷宮：大招按鈕、外掛列、特殊格 ----------
+  function buildUlt() {
+    const box = $('#ult-wrap');
+    box.innerHTML = `<button id="btn-ult" class="btn ult"><span class="ult-fill"></span><span class="ult-label"></span><span class="key">空白鍵</span></button>`;
+    $('#btn-ult').addEventListener('click', useUlt);
+  }
+  function renderChips() {
+    const r = mazeCtx.run, own = Maze.owned(r);
+    const sets = Maze.setStatus(r).filter(s => s.count > 0).map(s =>
+      `<span class="mzs${s.count >= 2 ? ' on' : ''}" style="--fc:${Maze.FLOWS[s.flow].color}">${Maze.FLOWS[s.flow].name} ${s.count}/3${s.active.length ? ' ★'.repeat(s.active.length) : ''}</span>`).join('');
+    $('#mz-chips').innerHTML = sets + own.map(p => `<span class="mzp" style="--fc:${Maze.FLOWS[p.flow].color}"><b>${p.name}</b><em>${Maze.lv(r, p.id)}</em></span>`).join('');
+    $('#mz-chips').title = Maze.setStatus(r).map(s => s.active.join('、')).filter(Boolean).join('；');
+  }
+  function renderUlt() {
+    const b = $('#btn-ult');
+    if (!b || !battle || !battle.mz) return;
+    const need = battle.mz.ultNeed, c = Math.min(battle.charge, need);
+    b.classList.toggle('ready', c >= need);
+    b.querySelector('.ult-fill').style.width = (c / need * 100) + '%';
+    b.querySelector('.ult-label').innerHTML = c >= need ? `${Icons.img('bolt')} 整列修復！` : `${Icons.img('bolt')} 整列修復 ${c}/${need}`;
+  }
+  // 特殊格的小圖示（用 CSS 變數帶進格子角落）
+  for (const t of ['chest', 'nugget']) document.documentElement.style.setProperty('--ic-' + t, `url(${Icons.url(t)})`);
+  document.documentElement.style.setProperty('--ic-bomb', `url(${Icons.url('bomb')})`);
+
+  function useUlt() {
+    if (!canAct() || !mazeCtx) return;
+    const r = battle.ult(sel);
+    if (!r.ok) {
+      toast(r.reason === 'charge' ? `大招還沒充滿（${battle.charge}/${battle.mz.ultNeed}）` : r.reason === 'full' ? '盤面已經滿了' : '現在不能用');
+      return;
+    }
+    Sound.play('ult');
+    flashCells(r.cells, 'flash-item');
+    stage.heroAttack(true);
+    popup('整列修復！', 'crit', 'monster');
+    r.results.forEach((x, k) => setTimeout(() => {
+      if (!x.ok) return;
+      boardPop('-' + (x.damage + (x.critDamage || 0)), 'dmg', x.idx);
+      showCrits(x.crits, x.critDamage);
+      showExtras(x);
+    }, 60 * k));
+    handleEvents(battle.drainEvents());
+    render();
+    afterAction({ won: r.won, lost: battle.state === 'lost' });
+  }
+
+  // 迷宮才有的額外效果：小爆擊、落雷、寶箱、炸彈格、黃金格、回血晶片
+  function showExtras(r) {
+    const x = r.extras;
+    if (!x) return;
+    if (x.small) { popup(`小爆擊 +${x.small}`, 'crit', 'monster'); boardPop(`小爆擊 +${x.small}`, 'crit', r.idx); }
+    if (x.storm) { popup(`落雷 +${x.storm}！`, 'crit', 'monster'); Sound.play('crit'); }
+    if (x.goldCell) boardPop('黃金格 ×3', 'crit', r.idx);
+    if (x.chest) { boardPop(`${Icons.img('coin')} +${x.chest}`, 'coin', r.idx); Sound.play('coin'); }
+    if (x.bomb) {
+      Sound.play('bomb');
+      boardPop(`炸彈 +${x.bomb.damage}`, 'crit', r.idx);
+      if (x.bomb.cells) { flashCells(x.bomb.cells, 'flash-item'); if (x.bomb.crits) showCrits(x.bomb.crits, x.bomb.critDamage); }
+    }
+    if (x.healed) popup(`+${x.healed} ${Icons.img('heart')}`, 'heal', 'hero');
   }
 
   // 魔王血條畫出分段線
@@ -101,7 +203,7 @@
     for (let k = 1; k < ph.length; k++) {
       const seg = document.createElement('i');
       seg.className = 'seg';
-      seg.style.left = (k / ph.length * 100) + '%';
+      seg.style.left = ((1 - k / ph.length) * 100) + '%';
       bar.appendChild(seg);
     }
   }
@@ -187,6 +289,10 @@
       el.classList.toggle('selected', i === sel);
       el.classList.toggle('peer', i !== sel && peers.has(i));
       el.classList.toggle('same', i !== sel && !!selVal && v === selVal);
+      const sp = battle.special ? battle.special.get(i) : null;
+      el.classList.toggle('sp-chest', sp === 'chest');
+      el.classList.toggle('sp-bomb', sp === 'bomb');
+      el.classList.toggle('sp-gold', sp === 'gold');
     }
     const counts = new Array(n + 1).fill(0);
     grid.forEach(v => counts[v]++);
@@ -200,13 +306,22 @@
     if (battle.shield > 0) hearts.push(Icons.img('shield'));
     $('#hearts').innerHTML = hearts.join('');
     $('#combo').textContent = battle.combo >= 2 ? `${battle.combo} 連擊 ×${battle.multiplier().toFixed(2).replace(/\.?0+$/, '')}` : '';
-    $('#gold').innerHTML = `${Icons.img('coin')} ${game.gold}`;
-    $('#mon-name').textContent = battle.monster.name;
-    $('#hp-fill').style.width = (battle.hp / battle.maxHp * 100) + '%';
-    $('#hp-text').textContent = `${battle.hp} / ${battle.maxHp}`;
+    if (mazeCtx) {
+      const f = battle.foeInfo();
+      $('#gold').innerHTML = `${Icons.img('coin')} ${battle.gold}`;
+      $('#mon-name').textContent = f.count > 1 ? `${f.name}（${f.index + 1}/${f.count}）` : f.name;
+      $('#hp-fill').style.width = (f.hp / f.max * 100) + '%';
+      $('#hp-text').textContent = `${f.count > 1 ? f.index + 1 + '/' + f.count + ' ' : ''}${f.hp}/${f.max}`;
+    } else {
+      $('#gold').innerHTML = `${Icons.img('coin')} ${game.gold}`;
+      $('#mon-name').textContent = battle.monster.name;
+      $('#hp-fill').style.width = (battle.hp / battle.maxHp * 100) + '%';
+      $('#hp-text').textContent = `${battle.hp} / ${battle.maxHp}`;
+    }
     $('#mon-move').textContent = battle.monster.phases
       ? `第 ${battle.phase + 1} 段：${battle.phaseDef().name}`
       : battle.monster.moveName;
+    if (mazeCtx) { renderUlt(); return; }
     for (const it of ITEMS) {
       const b = itemBtns[it.kind], cnt = game.inventory[it.kind];
       b.querySelector('.cnt').textContent = cnt;
@@ -220,13 +335,23 @@
     $('#timer-fill').style.width = Math.min(100, battle.timer / battle.attackTime * 100) + '%';
     bar.classList.toggle('frozen', frozen);
     bar.classList.toggle('danger', !frozen && battle.timer < battle.attackTime * 0.25);
+    $('#board').classList.toggle('danger', !frozen && battle.timer < battle.attackTime * 0.25);
     $('#timer-text').innerHTML = frozen
-      ? `${Icons.img('freeze')} 凍結中 ${Math.ceil(battle.freezeLeft)} 秒`
-      : `怪物攻擊倒數 ${Math.ceil(battle.timer)} 秒`;
+      ? `${Icons.img('freeze')} ${Math.ceil(battle.freezeLeft)} 秒`
+      : `${Math.ceil(battle.timer)} 秒`;
     stage.frozen = frozen;
   }
 
   function render() { renderBoard(); renderHud(); renderTimer(); }
+
+  // 盤面邊框閃色：眼睛盯著數字時，用餘光就知道戰況（綠＝填對、金＝爆擊、紅＝被打）
+  function boardFx(color, ms) {
+    const b = $('#board');
+    b.style.setProperty('--fx', color);
+    b.classList.add('fx');
+    clearTimeout(boardFx.t);
+    boardFx.t = setTimeout(() => b.classList.remove('fx'), ms || 450);
+  }
 
   function flashCells(list, cls) {
     for (const i of list) {
@@ -240,8 +365,12 @@
     if (!crits.length) return;
     flashCells(crits.flatMap(u => u.cells), 'flash-crit');
     stage.crit();
+    boardFx('#ffd24a', 650);
     const label = crits.length > 1 ? `爆擊 ×${crits.length}！` : '爆擊！';
     setTimeout(() => { popup(label, 'crit', 'monster'); popup('-' + critDamage, 'crit', 'monster'); }, 220);
+    // 盤面上：在爆擊那一排的中間跳「爆擊 -傷害」
+    const mid = crits[0].cells[Math.floor(crits[0].cells.length / 2)];
+    setTimeout(() => boardPop(`${label} -${critDamage}`, 'crit', mid), 120);
   }
 
   function canAct() { return battle && battle.state === 'fighting' && !paused && !ending; }
@@ -262,16 +391,26 @@
       el.textContent = v; el.classList.add('wrong');
       setTimeout(() => { el.classList.remove('wrong'); renderBoard(); }, 450);
       Sound.play(r.shielded ? 'shield' : 'wrong');
-      stage.monsterAttack();
-      setTimeout(() => hurtPopup(r), 170);
+      boardFx(r.shielded ? '#6ab0ff' : '#ff3b3b', 450);
+      if (r.wagered) { // 賭徒晶片：扣金幣代替扣心
+        boardPop(`${Icons.img('coin')} -${r.wagered}`, 'hurt', sel);
+        popup(`-${r.wagered} ${Icons.img('coin')}`, 'hurt', 'hero');
+      } else {
+        stage.monsterAttack();
+        setTimeout(() => hurtPopup(r), 170);
+        boardHurt(r, sel);
+      }
       if (r.reflected) setTimeout(() => popup(`${Icons.img('shield')} 反彈 -${r.reflected}`, 'dmg', 'monster'), 260);
     } else {
       // 填對：選取框留在原格，不自動跳下一格（煦恩指定）
       Sound.play(r.crits.length ? 'crit' : 'correct', r.combo);
       stage.heroAttack(r.crits.length > 0);
+      if (!r.crits.length) boardFx('#46d28a', 350);
       if (r.unmasked) popup('揭穿假數字！', 'info', 'monster');
       setTimeout(() => popup('-' + r.damage, 'dmg', 'monster'), 220);
+      boardPop('-' + r.damage, 'dmg', sel);
       showCrits(r.crits, r.critDamage);
+      showExtras(r);
       if (r.chain) { // 法師「連鎖爆擊」
         setTimeout(() => {
           flashCells(r.chain.cells, 'flash-item');
@@ -285,10 +424,17 @@
     afterAction(r);
   }
 
-  // 被打：有護盾就擋下，沒有就扣 1 顆心
+  // 被打：有防火牆就擋下，沒有就扣 1 顆心
   function hurtPopup(r) {
-    if (r.shielded) popup(`${Icons.img('shield')} 護盾擋下！`, 'heal', 'hero');
+    if (r.shielded) popup(`${Icons.img('shield')} 防火牆擋下！`, 'heal', 'hero');
     else popup(`-1 ${Icons.img('heart')}`, 'hurt', 'hero');
+  }
+
+  // 盤面上的被打回饋：有防火牆只跳字，沒有就晃一下閃紅
+  function boardHurt(r, i) {
+    if (r.shielded) { boardPop(`${Icons.img('shield')} 擋下！`, 'heal', i); return; }
+    boardHit();
+    boardPop(`-1 ${Icons.img('heart')}`, 'hurt', i);
   }
 
   // 怪物招式、魔王換段等事件
@@ -298,13 +444,21 @@
       if (ev.type === 'attack') {
         Sound.play(ev.shielded ? 'shield' : 'attack');
         stage.monsterAttack();
+        boardFx(ev.shielded ? '#6ab0ff' : '#ff3b3b', 500);
         setTimeout(() => hurtPopup(ev), 170);
+        boardHurt(ev);
         afterAction(ev);
       } else if (ev.type === 'cover') {
         Sound.play('cast');
         stage.cast(color);
         flashCells(ev.cells, 'flash-cover');
         popup(`黏住 ${ev.cells.length} 格！`, 'info', 'monster');
+      } else if (ev.type === 'foe') { // 迷宮：打倒一隻，下一隻出場
+        Sound.play('foe');
+        const b = battle;
+        stage.die();
+        popup('打倒了！下一隻出場', 'crit', 'monster');
+        setTimeout(() => { if (battle === b && b.foes[ev.index]) { stage.setMonster(b.foes[ev.index].look); } }, 550);
       } else if (ev.type === 'uncover') {
         flashCells(ev.cells, 'flash-item');
       } else if (ev.type === 'fake') {
@@ -322,7 +476,7 @@
   }
 
   function useItem(kind) {
-    if (!canAct()) return;
+    if (!canAct() || mazeCtx) return;
     const r = battle.useItem(kind, sel);
     if (!r.ok) {
       toast(r.reason === 'full' ? '心已經是滿的' : r.reason === 'empty' ? '這個道具用完了' : '現在不能用');
@@ -333,16 +487,17 @@
       flashCells(r.cells, 'flash-item');
       stage.heroAttack(kind === 'bomb');
       setTimeout(() => popup('-' + r.damage, 'dmg', 'monster'), 220);
+      boardPop('-' + r.damage, 'dmg', r.cells[Math.floor(r.cells.length / 2)]);
       showCrits(r.crits, r.critDamage);
     } else if (kind === 'freeze') {
       Sound.play('freeze');
-      popup('凍結 10 秒！', 'info', 'monster');
+      popup('當機 10 秒！', 'info', 'monster');
     } else if (kind === 'heal') {
       Sound.play('heal');
       stage.heal();
       popup(`+1 ${Icons.img('heart')}`, 'heal', 'hero');
     }
-    if (r.saved) setTimeout(() => popup('妙手！道具沒用掉', 'heal', 'hero'), 300);
+    if (r.saved) setTimeout(() => popup('快取！道具沒用掉', 'heal', 'hero'), 300);
     handleEvents(battle.drainEvents());
     render();
     afterAction(r);
@@ -362,6 +517,13 @@
   }
 
   function showResult(won) {
+    if (mazeCtx) { // 亂碼迷宮：交給迷宮畫面處理（發金幣、掉外掛、結算）
+      const b = battle;
+      mazeCtx = null; battle = null;
+      $('#items').classList.remove('hidden');
+      mazeUI.onBattleEnd(won, b);
+      return;
+    }
     const m = battle.monster;
     const sec = Math.round(battle.elapsed);
     const time = `${Math.floor(sec / 60)} 分 ${sec % 60} 秒`;
@@ -437,7 +599,21 @@
     $('#pause-layer').classList.toggle('hidden', !p);
   }
 
-  function goHome() { battle = null; paused = false; renderTown(); show('screen-start'); }
+  function goHome() {
+    if (mazeCtx) { // 迷宮撤退：回裂縫入口，這一關要重打
+      mazeCtx = null; battle = null; paused = false; $('#items').classList.remove('hidden');
+      mazeUI.open(false);
+      return;
+    }
+    battle = null; paused = false; renderTown(); show('screen-start');
+  }
+
+  // 亂碼迷宮的畫面（mazeui.js）；規則在 maze.js
+  const mazeUI = MazeUI.create({
+    game: () => game, save, show, toast, esc, goTown: goHome,
+    sound: n => Sound.play(n),
+    startBattle: run => startMazeBattle(run),
+  });
 
   function moveSel(dr, dc) {
     const n = battle.n;
@@ -452,7 +628,8 @@
   function renderTown() {
     $('#town-gold').innerHTML = `${Icons.img('coin')} ${game.gold}`;
     $('#town-inv').innerHTML = ITEMS.map(it => `<span>${Icons.img(it.icon)}${game.inventory[it.kind] || 0}</span>`).join('');
-    drawStreet($('#street'), game);
+    if (selShop == null) selShop = defaultShop();
+    paintStreet();
     renderHero();
     save(); // 小鎮畫面會在每次買賣、修店、選技能後重畫，順便存檔
 
@@ -479,6 +656,7 @@
       const m = MONSTERS[shop.monster];
       const card = document.createElement('div');
       card.className = 'shop-card st-' + st;
+      card.dataset.card = i;
       let html = `<div class="shop-head"><b>${shop.name}</b><span class="pill">${STATUS_TEXT[st]}</span></div>`;
       if (st === 'locked') {
         html += `<p class="shop-note">修好${Town.SHOPS[i - 1].name}後，這裡的亂碼怪才會現身</p>`;
@@ -505,12 +683,25 @@
     const ready = Town.allRepaired(game);
     const card = document.createElement('div');
     card.className = 'shop-card ' + (game.ended ? 'st-done' : ready ? 'st-occupied' : 'st-locked');
+    card.dataset.card = 3;
     card.innerHTML = `<div class="shop-head"><b>街尾廣場</b><span class="pill">${game.ended ? '整條街修好了' : ready ? '魔王出現了' : '還沒解鎖'}</span></div>` +
       (ready
         ? `<div class="shop-btns"><button class="btn sbtn fight boss" data-act="fight" data-m="${Town.BOSS}">${Icons.img('crown')} 挑戰${boss.name.replace(/（暫名）/, '')} 9×9</button></div>`
         : `<p class="shop-note">三間店都修好，魔王才會出現</p>`);
     box.appendChild(card);
 
+    // 裂縫入口：打倒魔王後解鎖
+    {
+      const open = Maze.unlocked(game), rc = document.createElement('div');
+      rc.className = 'shop-card rift-card ' + (open ? 'st-open' : 'st-locked');
+      rc.dataset.card = 3;
+      rc.innerHTML = open
+        ? `<div class="shop-head"><b>${Icons.img('rift')} 亂碼裂縫</b><span class="pill">${Icons.img('shard')} ${game.maze.shards}</span></div><div class="shop-btns"><button class="btn sbtn fight rift" data-act="rift">${Icons.img('rift')} ${game.maze.run ? '繼續這一局' : '走進裂縫'}</button></div><p class="shop-note">每次路都不一樣，變強靠打贏掉的外掛。最遠第 ${game.maze.best.floors} 關</p>`
+        : `<div class="shop-head"><b>${Icons.img('rift')} ？？？</b><span class="pill">還沒解鎖</span></div><p class="shop-note">整條街修好後，廣場會裂開……</p>`;
+      box.appendChild(rc);
+    }
+
+    box.querySelectorAll('[data-card]').forEach(c => c.classList.toggle('hidden', +c.dataset.card !== selShop));
     $('#town-hint').textContent = townHint();
   }
 
@@ -598,14 +789,46 @@
     return L;
   }
   let lastLine = '';
-  $('#street').addEventListener('click', () => {
+  function sayLine() {
     const L = residentLines().filter(x => x !== lastLine);
     lastLine = L[Math.floor(Math.random() * L.length)];
-    Sound.play('tap');
     const el = $('#toast');
     el.textContent = lastLine; el.classList.remove('hidden');
     clearTimeout(toast.t);
     toast.t = setTimeout(() => el.classList.add('hidden'), 2600);
+  }
+  // 街景：居民會走動；點居民聽他說話，點店（或廣場）切換下方的店面板
+  let selShop = null;
+  const streetT0 = performance.now();
+  function paintStreet() { drawStreet($('#street'), game, { t: (performance.now() - streetT0) / 1000, sel: selShop }); }
+  setInterval(() => {
+    if (!document.hidden && $('#screen-start').classList.contains('active')) paintStreet();
+  }, 110);
+  // 預設選到「下一步該去」的那間店
+  function defaultShop() {
+    for (let i = 0; i < Town.SHOPS.length; i++) {
+      const st = Town.shopStatus(game, i);
+      if (st === 'occupied' || st === 'repairable' || st === 'open') return i;
+    }
+    return Town.allRepaired(game) ? 3 : 0;
+  }
+  function selectShop(i) {
+    selShop = i;
+    $('#shops').querySelectorAll('[data-card]').forEach(c => c.classList.toggle('hidden', +c.dataset.card !== selShop));
+    paintStreet();
+  }
+  $('#street').addEventListener('click', e => {
+    const cv = $('#street'), r = cv.getBoundingClientRect(), S = window.streetInfo;
+    const x = (e.clientX - r.left) / r.width * S.W, y = (e.clientY - r.top) / r.height * S.H;
+    Sound.play('tap');
+    const t = (performance.now() - streetT0) / 1000;
+    if (S.walkerAt(t).some(o => x >= o.x - 3 && x <= o.x + 8 && y >= S.GROUND - 12)) { sayLine(); return; }
+    for (let i = 0; i < S.LOOKS.length; i++) {
+      const L = S.LOOKS[i];
+      if (x >= L.x - 1 && x <= L.x + L.w + 1) { selectShop(i); return; }
+    }
+    if (x >= S.PLAZA_X) { selectShop(3); return; }
+    sayLine();
   });
 
   // 告訴玩家下一步可以做什麼
@@ -627,6 +850,7 @@
     if (!b) return;
     const act = b.dataset.act, i = +b.dataset.i;
     let r;
+    if (act === 'rift') { Sound.play('tap'); mazeUI.open(!game.maze.run); return; }
     if (act === 'fight') { startBattle(b.dataset.m === 'daily' ? 'daily' : +b.dataset.m); return; }
     if (act === 'repair') r = Town.repair(game, i);
     if (act === 'buy') r = Town.buy(game, i, b.dataset.k);
@@ -895,12 +1119,13 @@
     const k = e.key.toLowerCase();
     if (k === 'p' || k === 'escape') { e.preventDefault(); setPaused(!paused); return; }
     if (paused || ending) return;
-    const moves = { arrowup: [-1, 0], arrowdown: [1, 0], arrowleft: [0, -1], arrowright: [0, 1] };
+    const moves = { arrowup: [-1, 0], arrowdown: [1, 0], arrowleft: [0, -1], arrowright: [0, 1], w: [-1, 0], s: [1, 0], a: [0, -1], d: [0, 1] };
     if (moves[k]) { e.preventDefault(); moveSel(...moves[k]); return; }
     if (k === 'n') { e.preventDefault(); toggleNoteMode(); return; }
     if (/^[1-9]$/.test(k) && +k <= battle.n) { e.preventDefault(); enter(+k); return; }
+    if (k === ' ' && mazeCtx) { e.preventDefault(); useUlt(); return; }
     const it = ITEMS.find(x => x.key === k);
-    if (it) { e.preventDefault(); useItem(it.kind); }
+    if (it && !mazeCtx) { e.preventDefault(); useItem(it.kind); }
   });
 
   // 切到別的分頁或 App 時自動暫停，避免被偷打
@@ -908,7 +1133,7 @@
 
   // 開發測試用：網址加 ?debug 才看得到
   if (/[?&]debug\b/.test(location.search)) {
-    window.__debug = { get battle() { return battle; }, get sel() { return sel; }, enter, useItem, startBattle, showDex, select,
+    window.__debug = { get battle() { return battle; }, get mazeUI() { return mazeUI; }, startMazeBattle, useUlt, get sel() { return sel; }, enter, useItem, startBattle, showDex, select,
       get game() { return game; }, set game(v) { game = v; renderTown(); }, renderTown,
       fastForward(sec) { for (let k = 0; k < sec * 10 && battle; k++) { const ev = battle.tick(0.1); if (ev.length) handleEvents(ev); } render(); } };
     // 截圖用：?debug&start=怪物編號&fill=先填幾格&ff=快轉秒數&dex=打倒過的怪物編號（逗號分隔）
@@ -919,6 +1144,8 @@
     for (let i = 0; i < +(q.get('fix') || 0); i++) { game.dex[MONSTERS[i].id] = game.dex[MONSTERS[i].id] || 1; game.repaired[i] = true; }
     for (let i = 0; i < +(q.get('quest') || 0); i++) game.quests[i] = true;
     if (q.get('ended')) { game.ended = true; game.dex[MONSTERS[3].id] = 1; }
+    // maze：解鎖亂碼迷宮
+    if (q.has('maze') || q.has('mz')) game.maze.unlocked = true;
     // lv=等級&xp=經驗&skills=combo:2,heart:1&picks=待選次數：直接造出升級進度
     if (q.get('lv')) game.level = +q.get('lv');
     if (q.get('xp')) game.xp = +q.get('xp');
@@ -930,6 +1157,24 @@
     renderTown();
     if (q.get('picks')) { game.picks = +q.get('picks'); showLevelUp(); }
     if (q.get('dex') && !q.has('start')) showDex();
+    // mz=幕,關：直接開一局並跳到那一關；mzpl=c_speed:2,k_power:1 帶外掛；mzch=8 充滿大招；mzgo=normal／elite／boss／rest／shop／event／reward 直接進那種房間
+    // mzgold=金幣 mzhearts=心 mzdone=已過關數統計
+    if (q.has('mz')) {
+      const [a, f] = (q.get('mz') || '1,1').split(',').map(Number);
+      const run = Maze.newRun(game.maze.meta);
+      run.act = a || 1; run.floor = f || 1; run.starters = null;
+      run.stats.floors = Maze.idxOf(run);
+      if (q.get('mzpl')) q.get('mzpl').split(',').forEach(s => { const [id, n] = s.split(':'); if (Maze.byId[id]) run.plugins[id] = +(n || 1); });
+      if (q.get('mzch')) run.charge = +q.get('mzch');
+      if (q.get('mzgold')) run.gold = +q.get('mzgold');
+      if (q.get('mzhearts')) run.hearts = +q.get('mzhearts');
+      Maze.toPath(run);
+      game.maze.run = run;
+      const go = q.get('mzgo');
+      if (go === 'reward') { run.phase = 'reward'; run.drops = { kind: 'elite', options: Maze.rollDrops(run, 'elite') }; mazeUI.open(false); }
+      else if (go) { run.choices = [{ type: go }]; const t = Maze.enter(run, 0); if (t === 'normal' || t === 'elite' || t === 'boss') startMazeBattle(run); else mazeUI.open(false); }
+      else mazeUI.open(false);
+    }
     if (q.has('start')) {
       startBattle(+q.get('start'));
       if (battle) for (const i of battle.empties().slice(0, +(q.get('fill') || 0))) { select(i); enter(battle.solution[i]); }

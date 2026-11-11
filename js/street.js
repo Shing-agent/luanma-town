@@ -23,7 +23,8 @@
   ];
   const PLAZA_X = 99;
 
-  function drawStreet(canvas, g) {
+  function drawStreet(canvas, g, opts) {
+    opts = opts || {};
     canvas.width = W; canvas.height = H;
     const ctx = canvas.getContext('2d');
     const rnd = seeded(11);
@@ -48,6 +49,7 @@
 
     root.Town.SHOPS.forEach((shop, i) => drawShop(ctx, LOOKS[i], i, g, rnd));
     drawPlaza(ctx, g, rnd);
+    drawOverlay(ctx, g, opts);
   }
 
   function drawShop(ctx, L, i, g, rnd) {
@@ -127,5 +129,43 @@
     }
   }
 
+  // ---------- 會走動的居民、店門上方的狀態標記 ----------
+  const WALKERS = [
+    { x0: 4, x1: 92, sp: 5, ph: 0.0, hair: '#6b3a1e', shirt: '#e8a23d' },
+    { x0: 10, x1: 120, sp: 7, ph: 1.1, hair: '#2a2a3a', shirt: '#7a8fd5' },
+    { x0: 36, x1: 124, sp: 4, ph: 0.55, hair: '#8a5a2a', shirt: '#4fa37a' },
+  ];
+  function walkerAt(t) {
+    return WALKERS.map((w, i) => {
+      const span = w.x1 - w.x0, p = (t * w.sp / span + w.ph) % 2, u = p < 1 ? p : 2 - p;
+      return { i, w, x: Math.round(w.x0 + u * span), dir: p < 1 ? 1 : -1 };
+    });
+  }
+  const MARK = { '!': ['.X.', '.X.', '.X.', '...', '.X.'], k: ['X.X', 'X.X', 'XXX', 'XXX', 'XXX'] };
+  function drawOverlay(ctx, g, opts) {
+    const t = opts.t || 0, bob = Math.floor(t * 3) % 2;
+    // 店門上方的小標記
+    root.Town.SHOPS.forEach((shop, i) => {
+      const st = root.Town.shopStatus(g, i), L = LOOKS[i];
+      const top = GROUND - L.h, cx = L.x + Math.floor(L.w / 2) - 1;
+      const y = top - Math.ceil(L.w / 2) + 1 - 8 + (bob ? 0 : 1);
+      if (st === 'occupied') drawMap(ctx, MARK['!'], { X: '#ff5a6a' }, cx, Math.max(1, y));
+      else if (st === 'repairable') drawMap(ctx, MARK['!'], { X: '#ffd84d' }, cx, Math.max(1, y));
+      else if (st === 'locked') drawMap(ctx, MARK.k, { X: '#8a8a9a' }, cx, Math.max(1, y + 2));
+    });
+    // 選到的店：腳下一條亮線
+    if (opts.sel != null && opts.sel >= 0 && opts.sel < LOOKS.length) {
+      const L = LOOKS[opts.sel];
+      ctx.fillStyle = '#ffd84d'; ctx.fillRect(L.x - 1, GROUND + 1, L.w + 2, 1);
+    } else if (opts.sel === 3) {
+      ctx.fillStyle = '#ffd84d'; ctx.fillRect(PLAZA_X, GROUND + 1, 28, 1);
+    }
+    // 走動的居民
+    walkerAt(t).forEach(o => {
+      const step = (Math.floor(t * 5 + o.i) % 2) ? 1 : 0;
+      drawMap(ctx, RESIDENT, { H: o.w.hair, S: '#f2c9a0', E: '#222222', B: o.w.shirt, P: '#3a3a4a' }, o.x, GROUND - 7 - step);
+    });
+  }
   root.drawStreet = drawStreet;
+  root.streetInfo = { LOOKS, PLAZA_X, W, H, GROUND, walkerAt };
 })(typeof window !== 'undefined' ? window : globalThis);
