@@ -29,7 +29,8 @@
       picks: 0,                      // 還沒選的技能次數
       name: '', gender: '',          // 修復師名字、男生 m／女生 f（開場時問）
       look: { hat: 'none', cloth: 'blue', weapon: 'term' },   // 目前穿的（avatar.js）
-      owned: { hat: [], cloth: [], weapon: [] },              // 買過的（免費的不用記）
+      owned: { hat: [], cloth: [], weapon: [] },              // 擁有的裝備（起始裝備不用記）
+      gear: { lv: {}, shards: 0 },   // 裝備等級（沒記錄＝Lv 1）與碎片（gear.js）
       cls: null,                     // 進化職業 knight／mage／rogue
       daily: { last: '', streak: 0, best: 0 },   // 每日挑戰：最後過關日、連續天數、最快秒數（daily.js）
       follower: null,                // 帶著走的跟班（怪物 id）
@@ -39,10 +40,12 @@
 
   const beaten = (g, mIdx) => !!g.dex[root.MONSTERS[mIdx].id];
   const allRepaired = g => g.repaired.every(Boolean);
+  // 試玩期間（main.js 設 TRIAL_OPEN）：魔王不用先修好三間店就能挑戰
+  const bossOpen = g => !!root.TRIAL_OPEN || allRepaired(g);
 
   // 這隻怪現在能不能打
   function canFight(g, mIdx) {
-    if (mIdx === BOSS) return allRepaired(g);
+    if (mIdx === BOSS) return bossOpen(g);
     if (mIdx === 0) return true;
     return g.repaired[mIdx - 1];
   }
@@ -103,5 +106,5 @@
     return { firstTime, ending };
   }
 
-  root.Town = { SHOPS, BOSS, QUEST_DISCOUNT, STARTER, newGame, canFight, shopStatus, itemPrice, repair, buy, doQuest, recordWin, allRepaired };
+  root.Town = { SHOPS, BOSS, QUEST_DISCOUNT, STARTER, newGame, canFight, shopStatus, itemPrice, repair, buy, doQuest, recordWin, allRepaired, bossOpen };
 })(typeof window !== 'undefined' ? window : globalThis);

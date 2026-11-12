@@ -27,8 +27,8 @@
   ];
   const byId = Object.fromEntries(SKILLS.map(s => [s.id, s]));
 
-  // 進化：Lv 4 起可以三選一（2026-11-10）。外觀換成職業裝，之後升級多抽到職業專屬技能。
-  const EVOLVE_LV = 4;
+  // 進化：Lv 2 起可以三選一（2026-11-12 由 Lv 4 提早）。外觀換成職業裝，之後升級多抽到職業專屬技能。
+  const EVOLVE_LV = 2;
   const CLASSES = {
     knight: { name: '除錯騎士', icon: 'shield', role: '耐打', text: '心的上限 +1、每場多 1 道防火牆' },
     mage:   { name: '演算法師', icon: 'bomb',   role: '攻擊', text: '爆擊傷害 +50%' },
@@ -81,15 +81,16 @@
   // 開戰時交給 Battle 的參數（技能＋職業本身的加成）
   function battleOpts(g) {
     const c = g.cls;
+    const G = root.Gear ? root.Gear.total(g) : {}; // 穿著的裝備能力（gear.js）
     return {
-      maxHearts: 3 + lv(g, 'heart') + (c === 'knight' ? 1 : 0),
+      maxHearts: 3 + lv(g, 'heart') + (c === 'knight' ? 1 : 0) + (G.heart || 0),
       firstAttackBonus: g.follower === 'm3' ? 5 : 0, // 方塊跟班：第一次攻擊倒數多 5 秒
-      reveal: lv(g, 'reveal') + (c === 'rogue' ? 1 : 0),
+      reveal: lv(g, 'reveal') + (c === 'rogue' ? 1 : 0) + (G.peek || 0),
       shield: lv(g, 'shield') + lv(g, 'wall') + (c === 'knight' ? 1 : 0),
       rules: {
-        comboStep: 0.25 + 0.1 * lv(g, 'combo'),
-        critBonus: 0.3 * lv(g, 'crit') + (c === 'mage' ? 0.5 : 0),
-        attackBonus: 4 * lv(g, 'calm'),
+        comboStep: 0.25 + 0.1 * lv(g, 'combo') + (G.combo || 0) * 0.005,
+        critBonus: 0.3 * lv(g, 'crit') + (c === 'mage' ? 0.5 : 0) + (G.crit || 0) / 100,
+        attackBonus: 4 * lv(g, 'calm') + (G.dur || 0),
         reflect: 25 * lv(g, 'reflect'),
         chainReveal: lv(g, 'chain'),
         rollbackBonus: 0.05 * lv(g, 'focus'), // 在 Battle 加到基本退回比例上
@@ -98,7 +99,8 @@
     };
   }
 
-  const goldBonus = (g, reward) => Math.round(reward * (1 + 0.2 * lv(g, 'lucky') + (g.cls === 'rogue' ? 0.3 : 0) + (g.follower === 'm1' ? 0.1 : 0)));
+  const gearGold = g => (root.Gear ? root.Gear.total(g).gold : 0) / 100;
+  const goldBonus = (g, reward) => Math.round(reward * (1 + gearGold(g) + 0.2 * lv(g, 'lucky') + (g.cls === 'rogue' ? 0.3 : 0) + (g.follower === 'm1' ? 0.1 : 0)));
 
   // 這場拿到的經驗（魔王跟班 +20%）
   const xpGain = (g, holes) => Math.round(xpFor(holes) * (g.follower === 'm4' ? 1.2 : 1));

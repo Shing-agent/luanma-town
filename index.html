@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#1b1d2a">
-  <title>亂碼小鎮（暫名）</title>
+  <title>亂碼小鎮：數獨修復師</title>
   <!-- 手機「加到主畫面」：圖示與全螢幕設定 -->
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
@@ -13,45 +13,89 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="亂碼小鎮">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=1112g">
 </head>
 <body>
   <main class="app">
 
-    <!-- 小鎮（主畫面） -->
+    <!-- 主畫面「角色舞台」：角色在中間放大，大按鈕和導覽列在下方 -->
     <section id="screen-start" class="screen active">
-      <h1 class="title town-title">亂碼小鎮<small>（暫名）</small></h1>
-      <div class="town-top">
-        <span id="town-gold" class="gold"></span>
-        <span id="town-inv" class="town-inv"></span>
+      <div id="home-top" class="topbar">
+        <div class="tb-who"><b id="home-name"></b><div class="bar xp-bar"><div id="home-xp" class="fill"></div><span id="home-xp-text" class="bar-text"></span></div></div>
+        <span id="home-gold" class="gold tb-num"></span>
+        <span id="home-shards" class="tb-num tb-shard"></span>
         <button class="btn btn-small btn-music" aria-label="音樂開關"></button>
         <button class="btn btn-small btn-sound" aria-label="音效開關"></button>
       </div>
+      <div id="home-stage" class="home-stage">
+        <canvas id="home-bg" class="home-bg"></canvas>
+        <button id="home-evolve" class="btn home-evolve hidden" aria-label="進化"></button>
+        <div id="home-bubble" class="home-bubble"></div>
+        <div id="home-stats" class="home-stats" role="button" aria-label="能力值，點一下看裝備"></div>
+        <canvas id="home-hero" class="home-hero" aria-label="修復師"></canvas>
+        <div id="home-label" class="home-label"></div>
+      </div>
+      <div class="home-actions">
+        <button id="btn-rift" class="btn act-side"></button>
+        <button id="btn-go" class="btn act-go"></button>
+        <button id="btn-boss" class="btn act-side"></button>
+      </div>
+      <nav class="home-nav">
+        <button id="nav-town" class="btn nav-btn"></button>
+        <button id="nav-gear" class="btn nav-btn"></button>
+        <button id="nav-dex" class="btn nav-btn"></button>
+        <button id="nav-daily" class="btn nav-btn"></button>
+        <button id="nav-settings" class="btn nav-btn"></button>
+      </nav>
+    </section>
+
+    <!-- 小鎮面板：完整街景、店面板、道具、等級與技能 -->
+    <section id="screen-town" class="screen">
+      <div class="sub-head">
+        <button id="btn-town-back" class="btn btn-small sub-back">‹ 返回</button>
+        <h2 class="sub-title">小鎮</h2>
+        <span id="town-gold" class="gold"></span>
+      </div>
+      <span id="town-inv" class="town-inv"></span>
       <div id="hero-bar" class="hero-bar"></div>
       <canvas id="street" class="street" title="點店看店面板、點居民聽他說話"></canvas>
       <p class="street-tip">點街上的店切換下方的店面板；點居民聽他說話</p>
       <p id="town-hint" class="town-hint"></p>
       <div id="shops" class="shops"></div>
-      <div class="menu menu-row">
-        <button id="btn-wardrobe" class="btn btn-sub">衣櫥</button>
-        <button id="btn-dex" class="btn btn-sub">怪物圖鑑</button>
+    </section>
+
+    <!-- 設定 -->
+    <section id="screen-settings" class="screen">
+      <p class="game-name">亂碼小鎮<small>：數獨修復師</small></p>
+      <div class="sub-head">
+        <button id="btn-settings-back" class="btn btn-small sub-back">‹ 返回</button>
+        <h2 class="sub-title">設定</h2>
+        <span></span>
+      </div>
+      <div class="set-row">
+        <button class="btn btn-sub btn-music set-toggle" aria-label="音樂開關"></button>
+        <button class="btn btn-sub btn-sound set-toggle" aria-label="音效開關"></button>
       </div>
       <details class="howto">
         <summary>怎麼玩</summary>
         <ul>
-          <li>每間店被一隻亂碼怪佔據，打倒牠就能花金幣修店</li>
-          <li>修好的店會開始賣道具，下一隻怪也會出現</li>
-          <li>三間店都修好，魔王會出現在街尾廣場</li>
-          <li>戰鬥：填對＝攻擊，連續填對有連擊加成；填錯會被反擊，扣 1 顆心</li>
+          <li>主畫面按「出發」：打目前最前線的怪。打倒怪物才能花金幣修店，修好的店會賣道具、解鎖下一隻怪</li>
+          <li>三間店都修好，魔王會出現；打倒魔王之後，廣場會裂開，通往「亂碼迷宮」</li>
+          <li>戰鬥：填對＝攻擊，連續填對有連擊加成；填錯會被反擊，扣 1 顆心；填滿一列、一行或一宮＝爆擊</li>
+          <li>填數字兩種都行：先點格子再點數字；或先點數字（會一直選著）再連點空格</li>
           <li>怪物會定時攻擊（看倒數條），填對一格倒數會往回退</li>
-          <li>填滿一列、一行或一宮＝爆擊</li>
-          <li>打贏拿經驗，升級時從三個技能選一個（可以重複選來疊加）</li>
+          <li>打贏拿經驗，升級時從三個技能選一個；升到 Lv 2 可以選職業（騎士、法師、盜賊），職業裝會自動穿上</li>
+          <li>裝備：打贏怪物有機會掉裝備，精英怪與魔王一定會掉。裝備有普通、稀有、傳說三種，穿著的三件會加能力</li>
+          <li>重複拿到的裝備會變成碎片，碎片可以把裝備升到 Lv 3；也可以花 100 金幣開補給箱</li>
           <li>電腦：方向鍵或 W A S D 移動、數字鍵填、Z X C V 用道具、P 暫停</li>
         </ul>
         <p class="save-note">進度會自動存在這台裝置的瀏覽器裡，換手機或換瀏覽器不會帶過去。</p>
-        <button id="btn-intro" class="btn btn-small btn-intro">重看開場</button>
-        <button id="btn-reset" class="btn btn-small btn-intro btn-reset">從頭開始（清除進度）</button>
       </details>
+      <div class="set-list">
+        <button id="btn-intro" class="btn btn-sub">重看開場</button>
+        <button id="btn-rename" class="btn btn-sub">改名字／換角色</button>
+        <button id="btn-reset" class="btn btn-sub btn-reset">從頭開始（清除進度）</button>
+      </div>
     </section>
 
     <!-- 戰鬥畫面 -->
@@ -72,8 +116,10 @@
         <div class="bar timer-bar"><div id="timer-fill" class="fill"></div><span id="timer-text" class="bar-text"></span></div>
       </div>
       <div class="stage-wrap">
-        <canvas id="stage" class="stage"></canvas>
-        <div id="pops" class="pops"></div>
+        <div class="stage-box">
+          <canvas id="stage" class="stage"></canvas>
+          <div id="pops" class="pops"></div>
+        </div>
         <div id="mz-chips" class="mz-chips hidden"></div>
         <div class="mon-tag"><b id="mon-name" class="mon-name"></b><small id="mon-move" class="mon-move"></small></div>
       </div>
@@ -82,9 +128,9 @@
         <div id="board" class="board"></div>
         <div id="board-pops" class="pops"></div>
       </div>
-      <div id="pad" class="pad"></div>
       <div id="items" class="items"></div>
       <div id="ult-wrap" class="ult-wrap hidden"></div>
+      <div id="pad" class="pad"></div>
 
       <div id="pause-layer" class="layer hidden">
         <div class="layer-box">
@@ -105,28 +151,34 @@
       <p id="result-ending" class="ending hidden"></p>
       <dl id="result-stats" class="stats"></dl>
       <button id="btn-result-dex" class="dex-new hidden">新怪物收進圖鑑了！</button>
+      <button id="btn-result-town" class="dex-new hidden">去小鎮看看</button>
       <div class="menu">
         <button id="btn-again" class="btn btn-main">再打一場</button>
         <button id="btn-home" class="btn btn-sub">回小鎮</button>
       </div>
     </section>
 
-    <!-- 衣櫥（只是好看，不加能力） -->
-    <section id="screen-wardrobe" class="screen">
-      <h2 class="title">衣櫥</h2>
-      <div class="wd-top">
-        <canvas id="wd-pic" class="wd-pic"></canvas>
-        <div class="wd-side">
-          <p id="wd-name" class="wd-name"></p>
-          <p id="wd-gold" class="gold"></p>
-          <p id="wd-try" class="wd-try"></p>
-          <button id="wd-buy" class="btn sbtn repair hidden"></button>
-          <button id="wd-rename" class="btn btn-small">改名字／換角色</button>
-        </div>
+    <!-- 裝備：角色與三個裝備格、擁有的裝備圖示格、換上／升級／補給箱 -->
+    <section id="screen-gear" class="screen">
+      <div class="sub-head">
+        <button id="btn-gear-back" class="btn btn-small sub-back">‹ 返回</button>
+        <h2 class="sub-title">裝備</h2>
+        <span id="gear-top" class="gear-top"></span>
       </div>
-      <p class="wd-note">點一下就能試穿；衣服只是好看，不會變強。</p>
-      <div id="wd-slots"></div>
-      <div class="menu"><button id="btn-wd-back" class="btn btn-sub">回小鎮</button></div>
+      <div class="gear-hero">
+        <div class="gslots gslots-left"><button class="gslot" data-slot="hat" aria-label="帽子"></button><button class="gslot" data-slot="cloth" aria-label="衣服"></button></div>
+        <canvas id="gear-pic" class="gear-pic"></canvas>
+        <div class="gslots gslots-right"><button class="gslot" data-slot="weapon" aria-label="武器"></button></div>
+      </div>
+      <div id="gear-tabs" class="gear-tabs"></div>
+      <div id="gear-grid" class="gear-grid"></div>
+      <div id="gear-info" class="gear-info"></div>
+      <div class="gear-btns">
+        <button id="gear-equip" class="btn gbtn g-equip"></button>
+        <button id="gear-up" class="btn gbtn g-up"></button>
+        <button id="gear-crate" class="btn gbtn g-crate"></button>
+      </div>
+      <details class="gear-total"><summary>總能力</summary><div id="gear-total" class="gear-total-list"></div></details>
     </section>
 
     <!-- 怪物圖鑑 -->
@@ -175,24 +227,38 @@
       </div>
     </div>
 
+    <!-- 能力值明細 -->
+    <div id="stats-pop" class="levelup hidden">
+      <div class="lu-box">
+        <p class="lu-title">能力值明細</p>
+        <p class="lu-sub">每個數字是從哪裡加起來的</p>
+        <div id="stats-body" class="stats-body"></div>
+        <div class="stats-btns"><button id="stats-gear" class="btn btn-small">去換裝備</button><button id="stats-close" class="btn btn-main">知道了</button></div>
+      </div>
+    </div>
+
+    <!-- 掉裝備、開補給箱的提示 -->
+    <div id="drop-pop" class="drop-pop hidden"></div>
     <div id="toast" class="toast hidden"></div>
   </main>
 
-  <script src="js/sudoku.js"></script>
-  <script src="js/battle.js"></script>
-  <script src="js/monsters.js"></script>
-  <script src="js/sprites.js"></script>
-  <script src="js/icons.js"></script>
-  <script src="js/maze.js"></script>
-  <script src="js/town.js"></script>
-  <script src="js/daily.js"></script>
-  <script src="js/sound.js"></script>
-  <script src="js/save.js"></script>
-  <script src="js/avatar.js"></script>
-  <script src="js/hero.js"></script>
-  <script src="js/mazeui.js"></script>
-  <script src="js/intro.js"></script>
-  <script src="js/street.js"></script>
-  <script src="js/main.js"></script>
+  <script src="js/sudoku.js?v=1112g"></script>
+  <script src="js/battle.js?v=1112g"></script>
+  <script src="js/monsters.js?v=1112g"></script>
+  <script src="js/sprites.js?v=1112g"></script>
+  <script src="js/icons.js?v=1112g"></script>
+  <script src="js/maze.js?v=1112g"></script>
+  <script src="js/town.js?v=1112g"></script>
+  <script src="js/daily.js?v=1112g"></script>
+  <script src="js/sound.js?v=1112b"></script>
+  <script src="js/save.js?v=1112g"></script>
+  <script src="js/avatar.js?v=1112g"></script>
+  <script src="js/gear.js?v=1112g"></script>
+  <script src="js/hero.js?v=1112g"></script>
+  <script src="js/mazeui.js?v=1112g"></script>
+  <script src="js/intro.js?v=1112g"></script>
+  <script src="js/street.js?v=1112g"></script>
+  <script src="js/homescene.js?v=1112g"></script>
+  <script src="js/main.js?v=1112g"></script>
 </body>
 </html>

@@ -6,6 +6,59 @@
   const I = name => root.Icons.img(name);
   const ROOM_ICON = { normal: 'sword', elite: 'skull', rest: 'camp', shop: 'bag', event: 'qmark', boss: 'crown' };
 
+  // ---------- 外掛說明泡泡（長按／滑鼠移上去）----------
+  // 任何元素加 data-info="外掛id:目前等級,外掛id:目前等級"（沒有就填 0），就會有說明。
+  function infoHtml(spec) {
+    return spec.split(',').map(part => {
+      const [id, l] = part.split(':'), p = root.Maze.byId[id];
+      if (!p) return '';
+      const cur = +l || 0, next = Math.min(root.Maze.MAXLV, cur + 1), f = root.Maze.FLOWS[p.flow];
+      const lvl = cur >= root.Maze.MAXLV ? `Lv${cur}（滿級）` : cur ? `Lv${cur} → Lv${next}` : `新外掛 → Lv1`;
+      const eff = (cur ? `<div>現在：${p.text(cur)}</div>` : '') + (cur < root.Maze.MAXLV ? `<div>${cur ? '升級後' : '效果'}：${p.text(next)}</div>` : '');
+      const sets = root.Maze.SETS[p.flow];
+      const setTxt = sets ? `<div class="mzi-set"><b style="color:${f.color}">${f.name}流派</b>：湊 2 個 ★ ${sets[2]}；湊 3 個 ★ ${sets[3]}</div>` : `<div class="mzi-set"><b style="color:${f.color}">${f.name}</b>：沒有套裝，單件就能用</div>`;
+      return `<div class="mzi-one"><div class="mzi-name"><b>${p.name}</b>${p.rare ? ' <u>稀有</u>' : ''} <em>${lvl}</em></div>${eff}${setTxt}</div>`;
+    }).join('');
+  }
+  let infoEl = null;
+  function showInfo(el) {
+    if (!infoEl) { infoEl = document.createElement('div'); infoEl.className = 'mz-info'; document.body.appendChild(infoEl); }
+    infoEl.innerHTML = infoHtml(el.dataset.info);
+    infoEl.style.display = 'block';
+    const r = el.getBoundingClientRect(), w = infoEl.offsetWidth, h = infoEl.offsetHeight;
+    const x = Math.max(6, Math.min(window.innerWidth - w - 6, r.left + r.width / 2 - w / 2));
+    const y = r.top - h - 8 >= 6 ? r.top - h - 8 : Math.min(window.innerHeight - h - 6, r.bottom + 8);
+    infoEl.style.left = x + 'px'; infoEl.style.top = Math.max(6, y) + 'px';
+  }
+  function hideInfo() { if (infoEl) infoEl.style.display = 'none'; }
+  // 在某個容器上掛一次，底下所有 data-info 元素共用（重畫內容也不用重掛）
+  function bindInfo(box) {
+    let timer = null, startX = 0, startY = 0, held = null;
+    const clear = () => { clearTimeout(timer); timer = null; };
+    box.addEventListener('pointerdown', e => {
+      const el = e.target.closest('[data-info]');
+      if (!el || e.pointerType === 'mouse') return;
+      startX = e.clientX; startY = e.clientY; clear();
+      timer = setTimeout(() => { held = el; showInfo(el); }, 400);
+    });
+    box.addEventListener('pointermove', e => { if (timer && Math.hypot(e.clientX - startX, e.clientY - startY) > 10) clear(); });
+    const end = () => { clear(); if (held) { hideInfo(); setTimeout(() => { held = null; }, 450); } };
+    box.addEventListener('pointerup', end); box.addEventListener('pointercancel', end);
+    // 長按放開後瀏覽器還是會送出 click：攔下來，才不會誤選掉落卡
+    box.addEventListener('click', e => { if (held && held.contains(e.target)) { e.stopPropagation(); e.preventDefault(); } }, true);
+    box.addEventListener('contextmenu', e => { if (e.target.closest('[data-info]')) e.preventDefault(); });
+    box.addEventListener('pointerover', e => {
+      if (e.pointerType !== 'mouse') return;
+      const el = e.target.closest('[data-info]');
+      if (el) showInfo(el);
+    });
+    box.addEventListener('pointerout', e => {
+      if (e.pointerType !== 'mouse') return;
+      const el = e.target.closest('[data-info]');
+      if (el && !el.contains(e.relatedTarget)) hideInfo();
+    });
+  }
+
   function create(api) {
     const $ = s => document.querySelector(s);
     let lastSummary = null; // 這局剛結算的內容（只在畫面上顯示一次）
@@ -18,7 +71,7 @@
     // ---------- 共用元件 ----------
     function plugChip(id, level) {
       const p = M().byId[id], f = M().FLOWS[p.flow];
-      return `<span class="mzp${p.rare ? ' rare' : ''}" style="--fc:${f.color}" title="${esc(p.text(level))}"><i>${f.name}</i><b>${p.name}</b><em>Lv${level}</em></span>`;
+      return `<span class="mzp${p.rare ? ' rare' : ''}" style="--fc:${f.color}" data-info="${id}:${level}"><i>${f.name}</i><b>${p.name}</b><em>Lv${level}</em></span>`;
     }
     function chips(r) {
       const own = M().owned(r);
@@ -76,7 +129,7 @@
     function startHtml(r) {
       const cards = r.starters.map((id, k) => {
         const p = M().PACKS[id];
-        return `<button class="btn mz-card pack ${id}" data-act="pack" data-id="${id}" style="--fc:${M().FLOWS[id].color}">
+        return `<button class="btn mz-card pack ${id}" data-act="pack" data-id="${id}" data-info="${Object.keys(p.plugins).map(k => k + ':0').join(',')}" style="--fc:${M().FLOWS[id].color}">
           <span class="mz-ico">${I(id === 'coin' ? 'coin' : id === 'crit' ? 'bomb' : id === 'prime' ? 'star' : 'sword')}</span>
           <span class="lu-body"><b>${p.name}</b><small>${p.text}</small></span></button>`;
       }).join('');
@@ -105,13 +158,13 @@
       const d = r.drops;
       const cards = d.options.map((o, i) => {
         const p = M().byId[o.id], f = M().FLOWS[p.flow];
-        return `<button class="btn mz-card drop${p.rare ? ' rare' : ''}" data-act="drop" data-i="${i}" style="--fc:${f.color}">
+        return `<button class="btn mz-card drop${p.rare ? ' rare' : ''}" data-act="drop" data-i="${i}" data-info="${o.id}:${o.from}" style="--fc:${f.color}">
           <span class="mz-flow">${f.name}${p.rare ? '・稀有' : ''}</span>
           <span class="lu-body"><b>${p.name}</b><small>${p.text(o.to)}</small></span>
           <span class="lu-lv">${o.from ? `升到 Lv ${o.to}` : '新外掛'}<i>${o.to}/${M().MAXLV}</i></span></button>`;
       }).join('') || '<p class="shop-note">所有外掛都滿級了！</p>';
       const free = r.rerolls > 0;
-      return `${head(r)}<p class="lu-title mz-sub">${I('star')} 打贏了！選一個外掛</p><p class="lu-sub">${d.kind === 'boss' ? '幕王' : d.kind === 'elite' ? '精英怪' : '戰利品'}掉落，也可以都不要</p>
+      return `${head(r)}<p class="lu-title mz-sub">${I('star')} 打贏了！選一個外掛</p><p class="lu-sub">${d.kind === 'boss' ? '幕王' : d.kind === 'elite' ? '精英怪' : '戰利品'}掉落，也可以都不要（長按外掛看說明）</p>
         <div class="lu-cards">${cards}</div>
         <div class="mz-row">${btn('btn-small', 'reroll', free ? `重抽（免費券 ×${r.rerolls}）` : `重抽 ${I('coin')}10`)}${btn('btn-small', 'skip', '都不要')}</div>`;
     }
@@ -119,7 +172,7 @@
     // ---------- 存檔營火（休息站）----------
     function restHtml(r) {
       const up = M().upgradeable(r);
-      const forge = up.length ? up.map(p => btn('btn mz-forge', 'forge', `${p.name} Lv${M().lv(r, p.id)} → Lv${M().lv(r, p.id) + 1}`, `data-id="${p.id}" style="--fc:${M().FLOWS[p.flow].color}"`)).join('') : '<p class="shop-note">還沒有可以鍛造的外掛</p>';
+      const forge = up.length ? up.map(p => btn('btn mz-forge', 'forge', `${p.name} Lv${M().lv(r, p.id)} → Lv${M().lv(r, p.id) + 1}`, `data-id="${p.id}" data-info="${p.id}:${M().lv(r, p.id)}" style="--fc:${M().FLOWS[p.flow].color}"`)).join('') : '<p class="shop-note">還沒有可以鍛造的外掛</p>';
       return `${head(r)}<p class="lu-title mz-sub">${I('camp')} 存檔營火</p><p class="lu-sub">營火旁，只能選一件事</p>
         <div class="mz-box">${btn('btn-main', 'heal', `補 1 顆心 ${I('heart')}`, r.hearts >= r.maxHearts ? 'disabled' : '')}</div>
         <div class="mz-box"><h3>或者鍛造一個外掛</h3><div class="mz-forges">${forge}</div></div>
@@ -133,7 +186,7 @@
       const items = s.items.map((it, i) => {
         const p = M().byId[it.id], f = M().FLOWS[p.flow], cur = M().lv(r, it.id);
         const dead = it.sold || cur >= M().MAXLV;
-        return `<div class="mz-meta${it.sold ? ' sold' : ''}" style="--fc:${f.color}"><div><b>${p.name}</b>${p.rare ? ' <small class="rare-t">稀有</small>' : ''} <small>${f.name}</small><br><small>${p.text(cur + 1)}${cur ? `（升到 Lv${cur + 1}）` : ''}</small></div>
+        return `<div class="mz-meta${it.sold ? ' sold' : ''}" data-info="${it.id}:${cur}" style="--fc:${f.color}"><div><b>${p.name}</b>${p.rare ? ' <small class="rare-t">稀有</small>' : ''} <small>${f.name}</small><br><small>${p.text(cur + 1)}${cur ? `（升到 Lv${cur + 1}）` : ''}</small></div>
           ${btn('sbtn repair', 'buy', it.sold ? '已買' : `${I('coin')} ${M().shopPrice(r, i)}`, `data-i="${i}"${dead ? ' disabled' : ''}`)}</div>`;
       }).join('');
       return `${head(r)}<p class="lu-title mz-sub">${I('bag')} 商店</p>${disc}
@@ -214,7 +267,7 @@
       if (res.lost) { doSettle(); save(); atRift = false; render(); api.show('screen-maze'); api.sound('lose'); return; }
       save(); atRift = false; render(); api.show('screen-maze');
       api.sound('win');
-      api.toast(`打贏了！+${res.reward} 金幣`);
+      api.toast(`打贏了！+${res.reward} 金幣`); // 普通怪已直接進下一關的選路，精英、幕王停在 3 選 1
     }
 
     // ---------- 按鈕 ----------
@@ -284,8 +337,11 @@
       if (act === 'evdone') { finishRoom(); return; }
     });
 
-    return { open, render, onBattleEnd, chips, setsHtml, plugChip };
+    bindInfo($('#mz-body'));
+    // 正在看通關畫面（讓 main.js 換結局曲）
+    const ending = () => { const r = run(); return !atRift && (r ? !!r.won : !!(lastSummary && lastSummary.won)); };
+    return { open, render, onBattleEnd, chips, setsHtml, plugChip, ending };
   }
 
-  root.MazeUI = { create };
+  root.MazeUI = { create, bindInfo, infoHtml };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -56,15 +56,19 @@
   };
 
   const ROOMS = {
-    normal: { name: '普通怪', text: '兩隻亂碼怪' },
-    elite: { name: '精英怪', text: '更硬、更肥，掉稀有外掛' },
+    normal: { name: '普通怪', text: '兩隻亂碼怪，打贏拿金幣' },
+    elite: { name: '精英怪', text: '更硬，打贏 3 選 1 外掛（含稀有）' },
     rest: { name: '存檔營火', text: '補 1 顆心，或鍛造一個外掛' },
     shop: { name: '商店', text: '用金幣買外掛、小補丁' },
     event: { name: '？事件', text: '不知道會遇到什麼' },
     boss: { name: '幕王', text: '這一幕的最終關卡' },
   };
 
-  const ACT_MULT = [1, 1.25, 1.5];
+  const ACT_MULT = [1, 1.35, 1.7];
+  const ATTACK_BASE = [36, 30, 26]; // 普通怪攻擊倒數（秒），逐幕縮短
+  const hpFor = (act, type) => 14 * ACT_MULT[act - 1] * (type === 'elite' ? 1.3 : 1) * (type === 'boss' ? 1.5 : 1);
+  const attackFor = (act, type, n) => n === 9 ? 50 : ATTACK_BASE[act - 1] - (type === 'normal' ? 0 : 4); // 9×9 守門怪格子多，倒數放寬
+  const fastFor = act => Math.max(18, ATTACK_BASE[act - 1] - 8); // 急躁／低電量
   const rngOf = r => r || Math.random;
   const pick = (arr, rng) => arr[Math.floor(rngOf(rng)() * arr.length)];
   function shuffle(arr, rng) {
@@ -85,7 +89,7 @@
     g.maze.best = Object.assign(newMazeSave().best, m.best || {});
     return g.maze;
   }
-  const unlocked = g => !!(g.ended || (g.maze && g.maze.unlocked));
+  const unlocked = g => !!(root.TRIAL_OPEN || g.ended || (g.maze && g.maze.unlocked)); // 試玩期間（TRIAL_OPEN）裂縫直接開
 
   // ---------- 外掛 ----------
   const lv = (run, id) => (run.plugins && run.plugins[id]) || 0;
@@ -149,17 +153,17 @@
   };
   // 每一幕的怪物種類：move 是這種怪的招式（cover 黏液／fake 雜訊／rush 急躁）
   const FOES = [
-    [{ name: '亂碼史萊姆', look: 'slime' }, { name: '小方塊', look: 'cube' }, { name: '罐頭郵件', look: 'can', move: 'junk' }],
+    [{ name: '亂碼史萊姆', look: 'slime', move: 'cover' }, { name: '小方塊', look: 'cube', move: 'rush' }, { name: '罐頭郵件', look: 'can', move: 'junk' }],
     [{ name: '亂碼史萊姆', look: 'slime', move: 'cover' }, { name: '雜訊蝙蝠', look: 'bat', move: 'fake' }, { name: '錯位方塊', look: 'cube', move: 'rush' }, { name: '彈窗小精靈', look: 'popup', move: 'popup' }],
     [{ name: '404 史萊姆', look: 'slime404', move: 'cover' }, { name: '錯位幽靈', look: 'ghost', move: 'fake' }, { name: '亂碼騎士', look: 'knight', move: 'rush' }, { name: '沒電熊', look: 'bear', move: 'lowbat' }],
   ];
   const MOVES = {
     cover: { moves: { cover: { every: 12, count: 1, max: 3 } }, moveName: '黏液' },
     fake: { moves: { fake: { every: 15, max: 2 } }, moveName: '雜訊' },
-    rush: { moves: {}, attackTime: 28, moveName: '急躁' },
+    rush: { moves: {}, fast: true, moveName: '急躁' },
     junk: { moves: { fake: { every: 15, max: 2 } }, moveName: '垃圾信' },
     popup: { moves: { cover: { every: 12, count: 2, max: 3 } }, moveName: '彈窗' },
-    lowbat: { moves: {}, attackTime: 28, moveName: '低電量' },
+    lowbat: { moves: {}, fast: true, moveName: '低電量' },
   };
   const BOSSES = [
     { name: '黏黏幕王', look: 'slime', scale: 2, move: { moves: { cover: { every: 12, count: 2, max: 4 } }, moveName: '黏液' } },
@@ -173,9 +177,9 @@
   function makeNode(run, type, rng) {
     rng = rngOf(rng);
     const act = run.act, boss = type === 'boss', elite = type === 'elite';
-    const n = boss ? (act === 3 ? 9 : 6) : (act === 1 ? 4 : 6);
-    const hpPerHole = 14 * ACT_MULT[act - 1] * (elite ? 1.25 : 1) * (boss ? 1.4 : 1);
-    const attackTime = n === 9 ? 50 : Math.max(24, (type === 'normal' ? 40 : 34) - 4 * (act - 1)); // 9×9 守門怪格子多，倒數放寬
+    const n = boss ? (act === 3 ? 9 : 6) : (act === 1 && run.floor < 3 ? 4 : 6); // 第 1 幕只有前 2 關是 4×4
+    const hpPerHole = hpFor(act, type);
+    const attackTime = attackFor(act, type, n);
     let foes, monster;
     if (boss) {
       const b = BOSSES[act - 1];
@@ -193,7 +197,9 @@
       } else monster = Object.assign({}, def, b.move);
     } else {
       const kind = pick(FOES[act - 1], rng);
-      const mv = kind.move ? MOVES[kind.move] : { moves: {}, moveName: '直球' };
+      // 第 1 幕第 1、2 關讓新手熟悉：史萊姆、小方塊先不放招（罐頭郵件照舊）
+      const calm = act === 1 && run.floor < 3 && kind.look !== 'can';
+      const mv = kind.move && !calm ? MOVES[kind.move] : { moves: {}, moveName: '直球' };
       const look = Object.assign({ name: kind.name, size: n, scale: 1 }, LOOKS[kind.look]);
       const fr = elite ? [0.4, 0.6] : [0.45, 0.55];
       foes = [
@@ -201,8 +207,8 @@
         { name: (elite ? '精英・' : '') + kind.name + (elite ? '' : ' Ⅱ'), frac: fr[1], look: Object.assign({}, look, { name: (elite ? '精英・' : '') + kind.name }) },
       ];
       monster = Object.assign({}, look, { moves: mv.moves, moveName: mv.moveName });
-      // 急躁（方塊）：攻擊倒數更短
-      if (mv.attackTime) monster.attackTime = Math.min(attackTime, mv.attackTime);
+      // 急躁（方塊）、低電量：攻擊倒數更短（該幕基準 −8 秒，最低 18）
+      if (mv.fast) monster.attackTime = Math.min(attackTime, fastFor(act));
     }
     // 特殊格：寶箱、炸彈、黃金格（9×9 各 2 個）
     const per = n === 9 ? 2 : 1;
@@ -210,8 +216,23 @@
       reward: boss ? 40 : elite ? 30 : 15, act, floor: run.floor };
   }
 
+  // 11/11 試過的快打版存下的關卡（有 boards、沒有 hpPerHole）：轉回經典格式
+  function fixNode(node) {
+    if (node.hpPerHole) return node;
+    const act = node.act || 1, boss = node.type === 'boss', elite = node.type === 'elite';
+    node.hpPerHole = hpFor(act, node.type);
+    if (boss && act === 3) node.n = 9;
+    node.attackTime = attackFor(act, node.type, node.n);
+    const fr = boss ? [1] : elite ? [0.4, 0.6] : [0.45, 0.55];
+    (node.foes || []).forEach((f, i) => { f.frac = fr[i] || fr[fr.length - 1]; delete f.boards; });
+    if (node.monster && node.monster.attackTime === 9) node.monster.attackTime = 28;
+    delete node.boards; delete node.hpScale;
+    return node;
+  }
+
   // 一場戰鬥要交給 Battle 的完整選項（不含題目）
   function battleOpts(run, node) {
+    fixNode(node);
     const m = mods(run);
     m.specials = node.specials;
     return {
@@ -256,12 +277,13 @@
     if (run.floor === 5) return [{ type: 'boss' }];
     if (i === 0) return [{ type: 'normal' }];
     const others = ['rest', 'shop', 'event'];
-    if (i >= 2) others.push('elite'); // 精英怪：第 1 幕第 3 關起
+    if (i >= 2) others.push('elite'); // 精英怪：第 1 幕第 3 關起（每幕第 3 關一定有）
     const out = [{ type: 'normal' }];
     const extra = shuffle(others, rng);
     // 補票：後半段如果還沒看過某種房間，就讓它出現
     const missing = others.filter(t => !run.seen[t]);
     if (i >= 8 && missing.length) { const t = pick(missing, rng); extra.splice(extra.indexOf(t), 1); extra.unshift(t); }
+    if (run.floor === 3) { extra.splice(extra.indexOf('elite'), 1); extra.unshift('elite'); } // 每幕第 3 關：精英怪那條一定在
     const count = 1 + (rng() < 0.4 ? 1 : 2); // 2～3 條路
     for (let k = 0; k < count - 1 && k < extra.length; k++) out.push({ type: extra[k] });
     for (const c of out) run.seen[c.type] = true;
@@ -301,7 +323,7 @@
     return 'next';
   }
 
-  // 戰鬥結束：贏了 → 發金幣、掉外掛；輸了 → 這局結束
+  // 戰鬥結束：贏了 → 發金幣；精英、幕王才掉外掛（3 選 1），普通怪直接進下一關；輸了 → 這局結束
   function endBattle(run, won, battle, rng) {
     const node = run.node;
     run.hearts = battle.hearts; run.gold = battle.gold; run.charge = battle.charge;
@@ -310,9 +332,10 @@
     run.gold += reward;
     if (node.type === 'elite') run.stats.elites++;
     if (node.type === 'boss') run.stats.bosses++;
+    if (node.type === 'normal') { advance(run, rng); return { lost: false, reward, kind: 'normal', drops: false }; }
     run.drops = { kind: node.type, options: rollDrops(run, node.type, rng) };
     run.phase = 'reward';
-    return { lost: false, reward, kind: node.type };
+    return { lost: false, reward, kind: node.type, drops: true };
   }
 
   // ---------- 掉落、商店、事件 ----------
@@ -472,7 +495,7 @@
   root.Maze = {
     MAXLV, FLOWS, PLUGINS, byId, SETS, SET_FLOWS, PACKS, META, ROOMS, LOOKS, BOSSES, HEAL_PRICE,
     newMazeSave, normalize, unlocked, lv, owned, flowCount, setStatus, addPlugin, mods, shopDiscount,
-    makeNode, battleOpts, newRun, applyStarter, makeChoices, toPath, enter, advance, endBattle,
+    makeNode, fixNode, battleOpts, newRun, applyStarter, makeChoices, toPath, enter, advance, endBattle,
     upgradeable, rollDrops, rollOne, takeDrop, rerollDrops, makeShop, shopPrice, shopHealPrice, buyItem, buyHeal,
     restHeal, forge, makeEvent, eventAct, eventFinish, shardsOf, settle, buyMeta, startRun, resumePhase, idxOf, actOf,
   };

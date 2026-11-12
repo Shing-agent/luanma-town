@@ -83,14 +83,16 @@
   // 修復師：還沒取名選角時是一團剪影（頭上一個問號），選好之後照玩家的樣子畫
   function hero(ctx, x, y, t) {
     const look = root.Intro.getLook ? root.Intro.getLook() : null;
-    if (look && look.gender) { root.Avatar.draw(ctx, look, x, y, { t }); return; }
-    root.Avatar.draw(ctx, { gender: 'm' }, x, y, { t, tint: '#2a2c44', tintAmt: 0.9 });
+    if (look && look.gender) { root.Avatar.drawFine(ctx, look, x, y, { t }); return; }
+    root.Avatar.drawFine(ctx, { gender: 'm' }, x, y, { t, tint: '#2a2c44', tintAmt: 0.9 });
     if (Math.floor(t * 2) % 2 === 0) drawMap(ctx, ['XXX', '..X', '.X.', '...', '.X.'], { X: '#ffd84d' }, x + 5, y - 7);
   }
 
   function draw(ctx, page, t) {
     const bg = backgrounds();
     const rnd = Math.random;
+    ctx.setTransform(2, 0, 0, 2, 0, 0); // 畫布是兩倍大，修復師的重畫版才畫得細
+    ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, W, H);
     if (page === 0) {
       ctx.drawImage(bg.happy, 0, 0);
@@ -207,7 +209,7 @@
     onDone = done || null;
     page = 0;
     const cv = $('#intro-canvas');
-    cv.width = W; cv.height = H;
+    cv.width = W * 2; cv.height = H * 2;
     $('#intro').classList.remove('hidden');
     render();
     cancelAnimationFrame(raf);

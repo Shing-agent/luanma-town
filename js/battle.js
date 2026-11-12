@@ -273,6 +273,20 @@
     }
 
     _checkEnd() {
+      // 迷宮：怪物倒下時盤面還沒填完，剩下的空格自動變成金幣（每格 3 枚），直接算贏（2026-11-11 煦恩改）
+      if (this.mz && this.state === 'fighting') {
+        if (this.hp <= 0 && !this.down) {
+          this.down = true; this.covers = [];
+          const cells = this.empties();
+          const g = this.mz.leftoverGold || 3;
+          cells.forEach(i => this._place(i));
+          this.fakes.clear();
+          this.gold += g * cells.length; this.goldGained += g * cells.length;
+          this.events.push({ type: 'down', left: cells.length, cells, each: g });
+        }
+        if (this.grid.every(v => v)) { this.state = 'won'; this.hp = 0; }
+        return { won: this.state === 'won', down: !!this.down };
+      }
       if (this.state === 'fighting' && (this.hp <= 0 || this.grid.every(v => v))) {
         this.state = 'won'; this.hp = 0;
       }
@@ -301,6 +315,14 @@
     input(idx, v) {
       if (this.state !== 'fighting' || this.grid[idx]) return { ignored: true };
       const mz = this.mz;
+      if (mz && this.down) { // 怪物已倒下：填錯沒事、填對撿金幣
+        if (v !== this.solution[idx]) return { ok: false, idx, value: v, heartLost: false, down: true };
+        this.combo++; this.maxCombo = Math.max(this.maxCombo, this.combo);
+        const crits = this._place(idx);
+        const g = mz.leftoverGold || 3;
+        this.gold += g; this.goldGained += g;
+        return Object.assign({ ok: true, idx, value: v, damage: 0, critDamage: 0, crits: [], combo: this.combo, mult: 1, extras: { loot: g }, leftover: true, critCells: crits }, this._checkEnd());
+      }
       if (v !== this.solution[idx]) {
         // 連擊保險：Lv1 填錯連擊只減半；Lv2 起只扣 3
         if (mz && mz.comboKeep === 1) this.combo = Math.floor(this.combo / 2);
@@ -378,6 +400,7 @@
     tick(dt) {
       if (this.state !== 'fighting') return this.drainEvents();
       this.elapsed += dt;
+      if (this.down) return this.drainEvents(); // 怪物倒下了：不再攻擊、不再放招
       if (this.freezeLeft > 0) {
         // 凍結：攻擊倒數和招式都停住
         this.freezeLeft = Math.max(0, this.freezeLeft - dt);

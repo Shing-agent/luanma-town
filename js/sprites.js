@@ -204,7 +204,7 @@
   class Stage {
     constructor(canvas) {
       this.canvas = canvas;
-      canvas.width = W; canvas.height = H;
+      canvas.width = W * 2; canvas.height = H * 2; // 畫布是邏輯格的 2 倍細，修復師用精緻版（avatar.js）
       this.ctx = canvas.getContext('2d');
       this.ctx.imageSmoothingEnabled = false;
       this.bg = makeBg();
@@ -282,6 +282,15 @@
       this.glitchUntil = this.t + 0.25;
     }
 
+    // 垃圾信：往盤面方向丟出一串小信封
+    mail() {
+      const m = this.monsterBox();
+      for (let i = 0; i < 8; i++) {
+        const life = 0.5 + i * 0.05;
+        this.parts.push({ x: m.x + m.w / 2, y: m.y + 3, vx: -30 - Math.random() * 40 + i * 6, vy: -25 - Math.random() * 20, life, col: i % 3 === 0 ? '#e0474f' : '#ffffff', g: 70 });
+      }
+    }
+
     // 魔王換階段：閃光＋震動＋大量粒子
     phase() {
       this.flashT = this.t; this.flashCol = '#ffffff'; this.shakeT = this.t;
@@ -300,6 +309,7 @@
 
     draw(dt) {
       const ctx = this.ctx;
+      ctx.setTransform(2, 0, 0, 2, 0, 0);
       this.t += dt;
       const t = this.t;
       for (let i = this.timers.length - 1; i >= 0; i--)
@@ -326,7 +336,7 @@
       }
       const heroHurt = t - this.heroHit < 0.4 && Math.floor(t * 20) % 2 === 0;
       // 修復師：外觀（男生／女生、帽子、衣服、武器）由 avatar.js 畫
-      root.Avatar.draw(ctx, this.look, hx, hy, Object.assign({ t }, heroHurt ? { tint: '#ff3b3b', tintAmt: 0.7 } : null));
+      root.Avatar.drawFine(ctx, this.look, hx, hy, Object.assign({ t }, heroHurt ? { tint: '#ff3b3b', tintAmt: 0.7 } : null));
 
       // 跟班：縮小一半，在修復師後面跳
       if (this.follower) {
