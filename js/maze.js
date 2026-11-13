@@ -65,7 +65,8 @@
   };
 
   const ACT_MULT = [1, 1.35, 1.7];
-  const ATTACK_BASE = [36, 30, 26]; // 普通怪攻擊倒數（秒），逐幕縮短
+  const ATTACK_BASE = [30, 25, 21]; // 普通怪攻擊倒數（秒），逐幕縮短（11/13 煦恩覺得每場太快太輕鬆，從 36／30／26 調緊）
+  const GIVENS6 = [12, 11, 10];      // 迷宮 6×6 開場給的數字（主線是 15）：要填的格子多、怪物血量也跟著多
   const hpFor = (act, type) => 14 * ACT_MULT[act - 1] * (type === 'elite' ? 1.3 : 1) * (type === 'boss' ? 1.5 : 1);
   const attackFor = (act, type, n) => n === 9 ? 50 : ATTACK_BASE[act - 1] - (type === 'normal' ? 0 : 4); // 9×9 守門怪格子多，倒數放寬
   const fastFor = act => Math.max(18, ATTACK_BASE[act - 1] - 8); // 急躁／低電量
@@ -158,16 +159,16 @@
     [{ name: '404 史萊姆', look: 'slime404', move: 'cover' }, { name: '錯位幽靈', look: 'ghost', move: 'fake' }, { name: '亂碼騎士', look: 'knight', move: 'rush' }, { name: '沒電熊', look: 'bear', move: 'lowbat' }],
   ];
   const MOVES = {
-    cover: { moves: { cover: { every: 12, count: 1, max: 3 } }, moveName: '黏液' },
-    fake: { moves: { fake: { every: 15, max: 2 } }, moveName: '雜訊' },
+    cover: { moves: { cover: { every: 10, count: 1, max: 3 } }, moveName: '黏液' }, // 招式間隔 11/13 縮短約 1/5
+    fake: { moves: { fake: { every: 12, max: 2 } }, moveName: '雜訊' },
     rush: { moves: {}, fast: true, moveName: '急躁' },
-    junk: { moves: { fake: { every: 15, max: 2 } }, moveName: '垃圾信' },
-    popup: { moves: { cover: { every: 12, count: 2, max: 3 } }, moveName: '彈窗' },
+    junk: { moves: { fake: { every: 12, max: 2 } }, moveName: '垃圾信' },
+    popup: { moves: { cover: { every: 10, count: 2, max: 3 } }, moveName: '彈窗' },
     lowbat: { moves: {}, fast: true, moveName: '低電量' },
   };
   const BOSSES = [
-    { name: '黏黏幕王', look: 'slime', scale: 2, move: { moves: { cover: { every: 12, count: 2, max: 4 } }, moveName: '黏液' } },
-    { name: '雜訊幕王', look: 'bat', scale: 2, move: { moves: { fake: { every: 14, max: 3 } }, moveName: '雜訊' } },
+    { name: '黏黏幕王', look: 'slime', scale: 2, move: { moves: { cover: { every: 10, count: 2, max: 4 } }, moveName: '黏液' } },
+    { name: '雜訊幕王', look: 'bat', scale: 2, move: { moves: { fake: { every: 11, max: 3 } }, moveName: '雜訊' } },
     { name: '迷宮守門怪', look: 'boss', scale: 2, phases: true },
   ];
 
@@ -212,7 +213,8 @@
     }
     // 特殊格：寶箱、炸彈、黃金格（9×9 各 2 個）
     const per = n === 9 ? 2 : 1;
-    return { type, n, hpPerHole, attackTime, foes, monster, specials: { chest: per, bomb: per, gold: per },
+    const givens = n === 6 ? GIVENS6[act - 1] : undefined;
+    return { type, n, givens, hpPerHole, attackTime, foes, monster, specials: { chest: per, bomb: per, gold: per },
       reward: boss ? 40 : elite ? 30 : 15, act, floor: run.floor };
   }
 
@@ -333,6 +335,8 @@
     if (node.type === 'elite') run.stats.elites++;
     if (node.type === 'boss') run.stats.bosses++;
     if (node.type === 'normal') { advance(run, rng); return { lost: false, reward, kind: 'normal', drops: false }; }
+    // 第 3 幕守門怪是最後一戰：不用再選外掛，直接通關（2026-11-13 煦恩要求）
+    if (node.type === 'boss' && run.act >= 3) { advance(run, rng); return { lost: false, reward, kind: 'boss', drops: false, won: true }; }
     run.drops = { kind: node.type, options: rollDrops(run, node.type, rng) };
     run.phase = 'reward';
     return { lost: false, reward, kind: node.type, drops: true };

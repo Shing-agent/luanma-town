@@ -98,7 +98,7 @@
       for (let i = 0; i < r.maxHearts; i++) hearts.push(I(i < r.hearts ? 'heart' : 'heartEmpty'));
       return `<div class="mz-head">
         ${progress(r)}
-        <div class="mz-stat"><b>第 ${r.act} 幕・${r.floor}/5 關</b><span class="mz-hearts">${hearts.join('')}</span><span class="gold">${I('coin')} ${r.gold}</span></div>
+        <div class="mz-stat"><b>第 ${r.act} 幕・${r.floor}/5 關</b><span class="mz-hearts">${hearts.join('')}</span><span class="gold">${I('coin')} ${r.gold}</span><button class="btn btn-small mz-gear" data-act="gear">換裝備</button></div>
         <div class="mz-plugs">${chips(r)}</div>
         <div class="mz-sets">${setsHtml(r)}</div>
       </div>`;
@@ -204,9 +204,10 @@
     };
     function eventHtml(r) {
       const ev = r.event, d = EVENT_TEXT[ev.id];
-      if (ev.done) return `${head(r)}<p class="lu-title mz-sub">${I('qmark')} ${d.title}</p><p class="mz-evtext">${esc(ev.msg)}</p>${btn('btn-main', 'evdone', '繼續往前')}`;
+      const pic = root.EventArt && root.EventArt.url(ev.id) ? `<img class="mz-evpic" src="${root.EventArt.url(ev.id)}" alt="">` : ''; // 事件配圖（eventart.js）
+      if (ev.done) return `${head(r)}<p class="lu-title mz-sub">${I('qmark')} ${d.title}</p>${pic}<p class="mz-evtext">${esc(ev.msg)}</p>${btn('btn-main', 'evdone', '繼續往前')}`;
       const opts = d.opts.map(([c, label]) => btn('btn-main mz-evbtn', 'event', label, `data-c="${c}"`)).join('');
-      return `${head(r)}<p class="lu-title mz-sub">${I('qmark')} ${d.title}</p><p class="mz-evtext">${d.text}</p><div class="menu">${opts}${btn('btn-sub', 'event', '離開', 'data-c="leave"')}</div>`;
+      return `${head(r)}<p class="lu-title mz-sub">${I('qmark')} ${d.title}</p>${pic}<p class="mz-evtext">${d.text}</p><div class="menu">${opts}${btn('btn-sub', 'event', '離開', 'data-c="leave"')}</div>`;
     }
 
     // ---------- 結算 ----------
@@ -265,6 +266,7 @@
       const r = run();
       const res = M().endBattle(r, won, battle);
       if (res.lost) { doSettle(); save(); atRift = false; render(); api.show('screen-maze'); api.sound('lose'); return; }
+      if (res.won) { doSettle(); save(); atRift = false; render(); api.show('screen-maze'); api.sound('win'); return; } // 打倒最後的守門怪：直接通關
       save(); atRift = false; render(); api.show('screen-maze');
       api.sound('win');
       api.toast(`打贏了！+${res.reward} 金幣`); // 普通怪已直接進下一關的選路，精英、幕王停在 3 選 1
@@ -276,6 +278,7 @@
       if (!b || b.disabled) return;
       const act = b.dataset.act, g = game(), r = run();
       if (act === 'town') { api.goTown(); return; }
+      if (act === 'gear') { api.sound('tap'); api.openGear(); return; }
       if (act === 'rift') { atRift = true; render(); return; }
       if (act === 'newrun') { M().startRun(g); lastSummary = null; atRift = false; save(); render(); return; }
       if (act === 'resume') { atRift = false; render(); return; }

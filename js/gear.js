@@ -33,6 +33,13 @@
     bread:  { slot: 'weapon', rarity: 2, stats: { crit: 15, dur: 1 } },
     wrench: { slot: 'weapon', rarity: 2, stats: { combo: 8, gold: 10 } },
     keyboard: { slot: 'weapon', rarity: 3, stats: { crit: 25, combo: 8, peek: 1 } },
+    // 2026-11-13 新增 6 件（煦恩看樣本後說「都放進去」）
+    headset: { slot: 'hat',   rarity: 1, stats: { combo: 6 } },
+    goggles: { slot: 'hat',   rarity: 2, stats: { crit: 10, peek: 1 } },
+    vest:    { slot: 'cloth', rarity: 1, stats: { dur: 1 } },
+    coder:   { slot: 'cloth', rarity: 2, stats: { combo: 6, crit: 10 } },
+    mouse:   { slot: 'weapon', rarity: 1, stats: { crit: 10 } },
+    usb:     { slot: 'weapon', rarity: 3, stats: { crit: 20, combo: 8, dur: 1 } },
     // 職業裝（品質算傳說、不掉落）
     helmet: { slot: 'hat',    rarity: 3, cls: 'knight', stats: { dur: 2 } },
     armor:  { slot: 'cloth',  rarity: 3, cls: 'knight', stats: { heart: 1, combo: 5 } },
@@ -117,13 +124,20 @@
     return { id, rarity: GEAR[id].rarity, dupe: false, shards: 0 };
   }
 
-  // 打贏後掉落。kind：'normal'（一般怪，25%）、'elite'（精英、幕王、魔王，100%）。沒掉就回傳 null
+  // 打贏後掉落（11/13 煦恩覺得太好拿、太常重複，調低）。
+  // kind：'normal' 一般怪 10%；'elite' 精英、幕王 40%；'boss' 主線魔王與迷宮最後的守門怪 100%。沒掉就回傳 null
+  const DROP_CHANCE = { normal: 0.10, elite: 0.40, boss: 1 };
   function drop(g, kind, rng) {
     rng = rng || Math.random;
-    if (kind === 'normal' && rng() >= 0.25) return null;
-    const rar = rollRarity(kind === 'elite' ? 'elite' : 'normal', rng);
-    const list = pool(rar);
-    return give(g, list[Math.floor(rng() * list.length)]);
+    if (rng() >= (DROP_CHANCE[kind] == null ? DROP_CHANCE.normal : DROP_CHANCE[kind])) return null;
+    const rar = rollRarity(kind === 'normal' ? 'normal' : 'elite', rng);
+    return give(g, pickNew(g, pool(rar), rng));
+  }
+  // 優先給還沒有的；同品質全部收齊了才會抽到重複的（變碎片）
+  function pickNew(g, list, rng) {
+    const fresh = list.filter(id => !root.Avatar.owns(g, GEAR[id].slot, id));
+    const from = fresh.length ? fresh : list;
+    return from[Math.floor(rng() * from.length)];
   }
 
   // 補給箱：花金幣開一個
@@ -131,12 +145,11 @@
     rng = rng || Math.random;
     if (g.gold < CRATE_PRICE) return { ok: false, reason: 'gold', short: CRATE_PRICE - g.gold };
     g.gold -= CRATE_PRICE;
-    const list = pool(rollRarity('crate', rng));
-    return Object.assign({ ok: true }, give(g, list[Math.floor(rng() * list.length)]));
+    return Object.assign({ ok: true }, give(g, pickNew(g, pool(rollRarity('crate', rng)), rng)));
   }
 
   // 補齊舊存檔欄位
   function normalize(g) { state(g); }
 
-  root.Gear = { GEAR, STATS, SLOTS, RARITY, MAX_LV, UPGRADE_COST, SHARDS_FOR, CRATE_PRICE, lv, shards, statAt, statsOf, total, statText, textOf, totalText, upgrade, drop, crate, give, pool, normalize };
+  root.Gear = { GEAR, STATS, SLOTS, RARITY, MAX_LV, UPGRADE_COST, SHARDS_FOR, CRATE_PRICE, DROP_CHANCE, lv, shards, statAt, statsOf, total, statText, textOf, totalText, upgrade, drop, crate, give, pool, normalize };
 })(typeof window !== 'undefined' ? window : globalThis);

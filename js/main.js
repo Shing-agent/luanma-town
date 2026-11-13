@@ -149,7 +149,7 @@
   function startMazeBattle(run) {
     const node = run.node;
     monsterIdx = 'maze';
-    beginBattle(node.foes[0].look, Sudoku.generate(node.n), run);
+    beginBattle(node.foes[0].look, Sudoku.generate(node.n, node.givens ? { givens: node.givens } : undefined), run);
   }
 
   function beginBattle(monster, puzzle, mazeRun) {
@@ -673,12 +673,12 @@
 
   function showResult(won) {
     if (mazeCtx) { // 亂碼迷宮：交給迷宮畫面處理（發金幣、掉外掛、結算）
-      const b = battle, nodeType = mazeCtx.run.node && mazeCtx.run.node.type;
+      const b = battle, nodeType = mazeCtx.run.node && mazeCtx.run.node.type, act = mazeCtx.run.act;
       mazeCtx = null; battle = null;
       $('#items').classList.remove('hidden');
       mazeUI.onBattleEnd(won, b);
-      if (won) { // 迷宮裡的戰鬥也掉裝備：精英、幕王一定掉，普通怪 25%
-        const d = Gear.drop(game, nodeType === 'elite' || nodeType === 'boss' ? 'elite' : 'normal');
+      if (won) { // 迷宮裡的戰鬥也掉裝備：普通怪 10%、精英與幕王 40%、最後的守門怪一定掉
+        const d = Gear.drop(game, nodeType === 'boss' && act >= 3 ? 'boss' : nodeType === 'elite' || nodeType === 'boss' ? 'elite' : 'normal');
         if (d) { save(); setTimeout(() => showDrop(d), 500); }
       }
       return;
@@ -694,8 +694,8 @@
       xp = Hero.xpGain(game, battle.holes);
       ups = Hero.gainXp(game, xp);
       dropped = Hero.loot(game);
-      // 掉裝備：魔王一定掉（稀有以上），一般怪 25%；每日挑戰不掉
-      if (monsterIdx !== 'daily') gearDrop = Gear.drop(game, m.boss ? 'elite' : 'normal');
+      // 掉裝備：魔王一定掉（稀有以上），一般怪 10%；每日挑戰不掉
+      if (monsterIdx !== 'daily') gearDrop = Gear.drop(game, m.boss ? 'boss' : 'normal');
     }
     save(); // 輸了也存：用掉的道具要記得
     $('#result-title').textContent = ending ? '整條街修好了！' : won ? '修復成功！' : '被亂碼打倒了…';
@@ -781,6 +781,7 @@
     game: () => game, save, show, toast, esc, goTown: goHome,
     sound: n => Sound.play(n),
     startBattle: run => startMazeBattle(run),
+    openGear: () => showGear('maze'),
   });
   MazeUI.bindInfo($('#mz-chips')); // 戰鬥中的外掛清單也能長按看說明
 
@@ -1185,13 +1186,27 @@
   }
   function showDrop(res, title) {
     const el = $('#drop-pop');
-    el.innerHTML = `<span class="dp-title">${title || '掉到裝備了！'}</span><span class="dp-line">${dropLine(res)}</span>`;
+    // 還沒穿在身上的，給一顆「穿上」按鈕，不用跑去裝備頁（11/13 煦恩要求）
+    const slot = Gear.GEAR[res.id].slot, worn = game.look[slot] === res.id;
+    const cur = Avatar.find(slot, game.look[slot]);
+    const wear = worn ? '' : `<button class="btn btn-small dp-wear" data-slot="${slot}" data-id="${res.id}">穿上${cur && !cur.starter ? `（換下${esc(cur.name)}）` : ''}</button>`;
+    el.innerHTML = `<span class="dp-title">${title || '掉到裝備了！'}</span><span class="dp-line">${dropLine(res)}</span>${wear}`;
     el.classList.remove('hidden');
     el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';
     Sound.play(res.rarity === 3 ? 'levelup' : 'coin');
     clearTimeout(showDrop.t);
-    showDrop.t = setTimeout(() => el.classList.add('hidden'), 3200);
+    showDrop.t = setTimeout(() => el.classList.add('hidden'), wear ? 6000 : 3200);
   }
+  $('#drop-pop').addEventListener('click', e => {
+    const b = e.target.closest('.dp-wear'); if (!b) return;
+    const slot = b.dataset.slot, id = b.dataset.id;
+    if (!Avatar.equip(game, slot, id).ok) return;
+    save(); Sound.play('tap');
+    b.outerHTML = `<span class="dp-title">已經穿上了！</span>`;
+    clearTimeout(showDrop.t);
+    showDrop.t = setTimeout(() => $('#drop-pop').classList.add('hidden'), 1200);
+    if ($('#screen-gear').classList.contains('active')) { gearSel = { slot, id }; renderGear(); }
+  });
 
   function ensureGearSel() {
     if (gearSel && Avatar.find(gearSel.slot, gearSel.id) && Avatar.owns(game, gearSel.slot, gearSel.id)) return;
@@ -1247,7 +1262,9 @@
     $('#gear-total').innerHTML = tot.length ? tot.map(t => `<span class="chip">${t}</span>`).join('') : '<span class="hero-none">穿上有能力的裝備，這裡就會有加成</span>';
   }
 
-  function showGear() { gearSel = null; gearTab = 'all'; renderGear(); show('screen-gear'); }
+  // from：'maze' 時，返回鍵回到迷宮（迷宮中也能換裝備）
+  let gearFrom = 'home';
+  function showGear(from) { gearFrom = from === 'maze' ? 'maze' : 'home'; gearSel = null; gearTab = 'all'; renderGear(); show('screen-gear'); }
 
   $('#gear-grid').addEventListener('click', e => {
     const b = e.target.closest('[data-id]');
@@ -1297,7 +1314,7 @@
     renderGear();
     showDrop(r, '補給箱開出：');
   });
-  $('#btn-gear-back').addEventListener('click', goHome);
+  $('#btn-gear-back').addEventListener('click', () => { if (gearFrom === 'maze') { gearFrom = 'home'; mazeUI.open(false); } else goHome(); });
   $('#btn-town-back').addEventListener('click', goHome);
   $('#btn-settings-back').addEventListener('click', goHome);
 
@@ -1581,7 +1598,8 @@
   // ---------- 主迴圈 ----------
   let last = performance.now(), frameErrors = 0;
   function frame(now) {
-    const dt = Math.min(0.1, (now - last) / 1000);
+    // 瀏覽器第一格的時間戳可能比 last 早，算出負數會讓動畫抓到第 -1 張圖（11/13 修）
+    const dt = Math.max(0, Math.min(0.1, (now - last) / 1000));
     last = now;
     try { // 任何一格動畫出錯都不能讓主迴圈停掉（停掉＝倒數與畫面全卡住）
     if (battle && !paused && !ending) {

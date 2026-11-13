@@ -150,6 +150,9 @@
     return () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
   }
 
+  // 動畫第幾張圖：時間是負數或不是數字時也不會算出 -1
+  const frameIdx = (t, n) => (n > 1 && t > 0 ? Math.floor(t * 6) % n : 0);
+
   function drawMap(ctx, map, pal, x, y, o) {
     o = o || {};
     const s = o.scale || 1;
@@ -341,7 +344,7 @@
       // 跟班：縮小一半，在修復師後面跳
       if (this.follower) {
         const f = this.follower, frames = MAPS[f.map || 'blob'];
-        const mini = halfMap(frames[frames.length > 1 ? Math.floor(t * 6) % frames.length : 0]);
+        const mini = halfMap(frames[frameIdx(t, frames.length)]);
         const fy = GROUND - mini.length - (f.fly ? 6 + Math.round(Math.sin(t * 4) * 2) : Math.abs(Math.round(Math.sin(t * 5) * 2)));
         drawMap(ctx, mini, f.pal, hx - mini[0].length - 1, fy);
       }
@@ -351,7 +354,7 @@
         const def = this.monster;
         const m = this.monsterBox();
         const frames = MAPS[def.map || 'blob'];
-        const map = frames[frames.length > 1 ? Math.floor(t * 6) % frames.length : 0];
+        const map = frames[frameIdx(t, frames.length)];
         let mx = m.x, my = m.y;
         if (def.fly) my += Math.round(Math.sin(t * 4) * 2);
         else if (Math.sin(t * 2.4 + 1) > 0.5) my -= 1;

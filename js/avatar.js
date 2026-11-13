@@ -149,6 +149,8 @@
       { id: 'beanie', name: '毛線帽', price: 80 },
       { id: 'flower', name: '花圈', price: 100 },
       { id: 'crown', name: '小皇冠', price: 300 },
+      { id: 'headset', name: '電競耳機' },
+      { id: 'goggles', name: '維修護目鏡' },
       { id: 'helmet', name: '騎士頭盔', cls: 'knight' },
       { id: 'wizard', name: '法師帽', cls: 'mage' },
       { id: 'hood', name: '盜賊兜帽', cls: 'rogue' },
@@ -161,6 +163,8 @@
       { id: 'yellow', name: '黃色雨衣', price: 80 },
       { id: 'white', name: '白色實驗袍', price: 120 },
       { id: 'starry', name: '星空披風' },
+      { id: 'vest', name: '反光背心' },
+      { id: 'coder', name: '程式碼帽T' },
       { id: 'armor', name: '騎士鎧甲', cls: 'knight' },
       { id: 'robe', name: '法師長袍', cls: 'mage' },
       { id: 'cloak', name: '盜賊斗篷', cls: 'rogue' },
@@ -171,6 +175,8 @@
       { id: 'bread', name: '法國麵包', price: 120 },
       { id: 'wrench', name: '大扳手', price: 150 },
       { id: 'keyboard', name: '終端機鍵盤' },
+      { id: 'mouse', name: '滑鼠流星錘' },
+      { id: 'usb', name: 'USB 光劍' },
       { id: 'shield', name: '騎士盾', cls: 'knight' },
       { id: 'staff', name: '法杖', cls: 'mage' },
       { id: 'dagger', name: '匕首', cls: 'rogue' },
@@ -264,6 +270,9 @@
     term: trio('#2a2a33', '#1a1a22', '#4a4a58'), screen: flat('#0d1f17'), glow: flat('#57e389'),
     keyb: trio('#5a6578', '#3e4756', '#8a96a8'), keyc: trio('#7fd4ff', '#7fd4ff', '#bfeaff'),
     shield: trio('#3a5a8a', '#26406a', '#6fa8ff'), cream: trio('#f4f0e0', '#c9c2a8', '#ffffff'),
+    hs: trio('#7a84c8', '#525a96', '#aab2ec'), hsPad: trio('#e0455f', '#a82f45', '#ff7d92'), lens: trio('#57e3d4', '#2a8a82', '#c8fff9'), strap: trio('#6a4226', '#4a2c16', '#8f5c36'),
+    vest: trio('#ff8a2a', '#c45f12', '#ffb36a'), refl: trio('#e8ecf4', '#b4bccb', '#ffffff'), coder: trio('#22252e', '#15171d', '#3a3e4c'),
+    mouseB: trio('#e8e8f0', '#b4b6c8', '#ffffff'), cable: flat('#5a6578'), usb: trio('#3a5a8a', '#26406a', '#6fa8ff'),
     lolly: trio('#ff7ab0', '#d9528a', '#ffc2dc'), bread: trio('#e8b06a', '#b5702e', '#ffd9a0'), breadD: flat('#b5702e'),
   };
   const dk = k => { const n = k + '~'; if (!PAL[n]) PAL[n] = trio(PAL[k][1]); return n; }; // 同色再深一階
@@ -323,6 +332,8 @@
         rect(14, 21, 16, 24, 'gold'); rect(10, 27, 19, 28, 'brown'); set(14, 27, 'gold'); set(15, 27, 'gold');
         ell(8, 21, 3.2, 2.6, 'armor'); ell(22, 21, 3.2, 2.6, 'armor');
       }
+      else if (cloth === 'vest') { rect(13, 19, 16, 28, 'white'); for (const y of [23, 26]) { rect(10, y, 12, y, 'refl'); rect(17, y, 19, y, 'refl'); } rect(7, 23, 9, 23, 'refl'); rect(21, 23, 23, 23, 'refl'); } // 白 T 外面套橘色反光背心
+      else if (cloth === 'coder') { rect(10, 19, 19, 20, dk('coder')); set(12, 21, 'glow'); set(17, 21, 'glow'); for (const [x, y] of [[11, 23], [13, 24], [16, 23], [18, 25], [12, 26], [15, 26], [17, 27], [8, 22], [22, 23], [14, 22]]) set(x, y, 'glow'); } // 黑帽T，身上跑綠色程式碼
       else if (cloth === 'robe') { rect(14, 19, 15, 34, 'gold'); rect(8, 33, 22, 34, 'gold'); for (let y = 22; y <= 32; y += 4) { set(13, y, 'gold'); set(16, y, 'gold'); } rect(7, 24, 9, 25, 'gold'); rect(21, 24, 23, 25, 'gold'); }
       else {
         rect(14, 22, 15, 23, cloth === 'blue' ? 'glow' : (cloth === 'yellow' ? 'red' : (cloth === 'white' ? 'blue' : 'gold')));
@@ -365,6 +376,13 @@
         }
       } else if (hat === 'wizard') {
         ell(cx, 5, 11.5, 3, 'wiz'); poly([[9, 4], [21, 4], [19, -2], [17, -7], [14, -10]], 'wiz'); rect(10, 3, 20, 4, 'gold'); rect(14, 3, 15, 4, 'cream');
+      } else if (hat === 'headset') {
+        part++; for (let y = 0; y <= 10; y++) for (let x = 5; x <= 25; x++) { const a = ((x - cx) / 9.8) ** 2 + ((y - 9.4) / 9) ** 2, b = ((x - cx) / 7.8) ** 2 + ((y - 9.4) / 6.8) ** 2; if (a <= 1 && b > 1) put(x, y, 'hs', part); }
+        rect(4, 10, 7, 16, 'hs'); rect(23, 10, 26, 16, 'hs'); rect(6, 11, 7, 15, 'hsPad'); rect(23, 11, 24, 15, 'hsPad');
+        for (const [x, y] of [[7, 17], [8, 18], [9, 18], [10, 18]]) set(x, y, 'hs'); set(11, 18, 'glow');
+      } else if (hat === 'goggles') {
+        rect(6, 6, 24, 7, 'strap'); ell(11.5, 6.5, 2.8, 2.4, 'metal'); ell(18.5, 6.5, 2.8, 2.4, 'metal'); ell(11.5, 6.5, 1.7, 1.4, 'lens'); ell(18.5, 6.5, 1.7, 1.4, 'lens');
+        set(11, 6, 'white'); set(18, 6, 'white');
       } else if (hat === 'crown') {
         poly([[9, 4], [10, -1], [12, 2], [15, -2], [18, 2], [20, -1], [21, 4]], 'gold'); rect(9, 3, 21, 5, 'gold');
         set(15, 4, 'red'); set(11, 4, 'cyan'); set(19, 4, 'cyan');
@@ -383,6 +401,15 @@
         poly([[24, 18], [26, 18], [26, 28], [24, 28]], 'steel'); rect(22, 28, 28, 29, 'gold'); rect(24, 30, 26, 33, 'brown');
       } else if (w === 'keyboard') {
         rect(21, 27, 29, 34, 'keyb'); for (let y = 28; y <= 33; y += 2) for (let x = 22; x <= 28; x += 2) set(x, y, 'keyc');
+      } else if (w === 'mouse') {
+        for (const [x, y] of [[26, 24], [27, 23], [27, 22], [26, 21], [25, 20], [25, 19], [26, 18]]) set(x, y, 'cable');
+        ell(26, 30, 3.4, 4.4, 'mouseB'); rect(26, 26, 26, 29, dk('mouseB')); set(26, 27, 'red');
+        if (body) rect(21, 26, 23, 29, 'skin');
+      } else if (w === 'usb') {
+        rect(25, 4, 27, 22, 'cyan'); rect(26, 5, 26, 21, 'white'); rect(24, 23, 28, 25, 'steel'); set(25, 24, 'term'); set(27, 24, 'term');
+        rect(24, 26, 28, 33, 'usb'); set(26, 28, 'glow');
+        if (o.glow) { for (const [x, y] of [[23, 8], [29, 12], [23, 16]]) set(x, y, 'cyan'); }
+        if (body) rect(21, 27, 23, 30, 'skin');
       } else if (w === 'lolly') {
         rect(25, 15, 26, 33, 'cream'); ell(25.5, 10.5, 3.8, 3.8, 'lolly');
         for (const [x, y] of [[25, 10], [26, 10], [27, 11], [26, 12], [24, 12], [23, 11], [24, 9], [26, 8]]) set(x, y, 'white');
